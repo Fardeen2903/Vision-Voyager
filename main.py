@@ -11,17 +11,34 @@ face_match = False
 reference_img = cv2.imread("reference.jpg")
 print("Reference image loaded.")
 
+# Load Haar Cascade classifier for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
 def check_face(frame):
     global face_match
     try:
         print("Checking face...")
-        result = DeepFace.verify(frame, reference_img.copy(), enforce_detection=True)
-        print("Face checked.")
-        print("Result:", result)
-        if result['verified']:
-            face_match = True
-        else:
-            face_match = False
+        # Convert the frame to grayscale for face detection
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Detect faces in the frame
+        faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.3, minNeighbors=5)
+
+        for (x, y, w, h) in faces:
+            # Crop the face region for verification
+            face_roi = frame[y:y + h, x:x + w]
+
+            # Verify the cropped face
+            result = DeepFace.verify(face_roi, reference_img.copy(), enforce_detection=False)
+
+            print("Face checked.")
+            print("Result:", result)
+
+            if result['verified']:
+                face_match = True
+                break
+            else:
+                face_match = False
     except ValueError as e:
         print(f"Error: {e}")
 
