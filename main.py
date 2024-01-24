@@ -15,7 +15,7 @@ def check_face(frame):
     global face_match
     try:
         print("Checking face...")
-        result = DeepFace.verify(frame, reference_img.copy())
+        result = DeepFace.verify(frame, reference_img.copy(), enforce_detection=True)
         print("Face checked.")
         print("Result:", result)
         if result['verified']:
@@ -39,8 +39,11 @@ while True:
 
         if face_match:
             cv2.putText(frame, "MATCH", (20, 450), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)
+
+            print("MATCH")
         else:
             cv2.putText(frame, "NO MATCH", (20, 450), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
+            print(" NO MATCH")
 
         cv2.imshow("video", frame)
 
@@ -54,4 +57,3 @@ cap.release()
 # Close all windows
 cv2.destroyAllWindows()
 
-# doesn't run on my laptop for some reason...should run via CPU if GPU not there
