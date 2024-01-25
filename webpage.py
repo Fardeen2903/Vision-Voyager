@@ -1,3 +1,4 @@
+# Import necessary libraries
 from datetime import datetime
 import firebase_admin
 from flask import Flask, request, redirect, url_for, render_template, flash
@@ -22,21 +23,29 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Routes
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# Create a route for adding a new person
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
     if request.method == 'POST':
+        # Get the form data
+        name = request.form['name']
+        status = request.form['status']
+        office_room_number = request.form['office_room_number']
+        department_or_major = request.form['department_or_major']
+
+        # Create a new person document
         person_data = {
-            'name': request.form['name'],
-            'status': request.form['status'],
-            'office_room_number': request.form['office_room_number'],
-            'department_or_major': request.form['department_or_major'],
+            'name': name,
+            'status': status,
+            'office_room_number': office_room_number,
+            'department_or_major': department_or_major,
         }
 
+        # Upload the photo if provided
         file = request.files['photo']
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
@@ -44,35 +53,44 @@ def add_person():
             file.save(file_path)
 
             # Upload the file to Firebase Storage
-            blob = bucket.blob(f'person_photos/{filename}')
+            blob = bucket.blob(f'photos/{filename}')
             blob.upload_from_filename(file_path)
 
-            # Add the public URL to the person data
+            # Add the photo URL to the person document
             person_data['photo_url'] = blob.public_url
 
-        # Add person data to Firestore
-        db.collection('People').add(person_data)
+        # Add the person data to Firestore
+        db.collection('people').add(person_data)
         flash('Person added successfully.')
-        return redirect(url_for('index'))
+        return redirect(url_for('view_people'))
 
     return render_template('add_person.html')
 
+# Create a route for viewing all people
 @app.route('/view_people')
 def view_people():
-    people = db.collection('People').stream()
+    people = db.collection('people').stream()
     person_list = [{'doc_id': person.id, **person.to_dict()} for person in people]
     return render_template('view_people.html', people=person_list)
 
+# Create a route for editing a person's information
 @app.route('/edit_person/<person_id>', methods=['GET', 'POST'])
 def edit_person(person_id):
-    person_ref = db.collection('People').document(person_id)
+    person_ref = db.collection('people').document(person_id)
 
     if request.method == 'POST':
+        # Get the updated form data
+        name = request.form['name']
+        status = request.form['status']
+        office_room_number = request.form['office_room_number']
+        department_or_major = request.form['department_or_major']
+
+        # Update the person document
         updated_data = {
-            'name': request.form['name'],
-            'status': request.form['status'],
-            'office_room_number': request.form['office_room_number'],
-            'department_or_major': request.form['department_or_major'],
+            'name': name,
+            'status': status,
+            'office_room_number': office_room_number,
+            'department_or_major': department_or_major,
         }
         person_ref.update(updated_data)
         flash('Person updated successfully!')
@@ -81,9 +99,10 @@ def edit_person(person_id):
     person = person_ref.get().to_dict()
     return render_template('edit_person.html', person=person, person_id=person_id)
 
+# Create a route for deleting a person
 @app.route('/delete_person/<person_id>', methods=['POST'])
 def delete_person(person_id):
-    db.collection('People').document(person_id).delete()
+    db.collection('people').document(person_id).delete()
     flash('Person deleted successfully!')
     return redirect(url_for('view_people'))
 
