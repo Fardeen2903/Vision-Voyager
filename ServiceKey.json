@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "visionvoyager-bd590",
+  "private_key_id": "67c6ceb0c548c8aa06a362bcaeed1bd9556eea6d",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDib7ZDldD4lQVo\ngO2YHFWSyOX17m1cW1jCsDxu/hg1Z1sr+fzYg12h4050NlaqOS7PXemghjpqGCXY\nrPwKl60nsrK0dKc+3xXNdPMf0U3okDavGYHhNqauUt2cQF1kW3ybVGaamcFzed2C\nQd+S2pbmR8s/LMFHWO3h0qA0c08crnE+9jToXhldZXHdVlGkaNGCe6xUSWbe97ea\nV7E+apaQF7LlDnYnjuUem+nWp6DfJl7qmCV2NEGpG8Qb31OqpxjqS9iis8zMwDI8\nGsdsfCuu4rgg42ogODOOXl23iDGmtK7bsMplBcmYGbcKN7DQTR9zaFRc+KiiPepE\nyqHKZQKlAgMBAAECggEADEturPdDaDKRNLDRaxcDbMukiX4CE/JwHJa8mqCIeHfY\nRbLrurwml0MUEAUg9K+o/hXrjkLThPiy2gkJy1pxIAIY0r8FvgkXXOHqzzFfu/mp\nRR3LBUs2HCoq1xB7RwHHqi3C6hs18Nru/yMBVxmFeX3wSB8aOdFB41HQJIuWl1Ll\nnxm9eXfw3Hr7WiF1AlD7OndOdkrTBNiq5ggn8HBVJrv/23t8VVMNnRGnXbDnU0by\nE+5oHWSZUQ+m2QYM5MdEky1/JPfuk85LhPAqcylc9jcQWio/vhb2ge283Beo7Iwb\nvQiiV1/ipqDTwrkykqQq/4dq0cGwbBS4yHrZrSDncQKBgQD0MJM+0cddoHiHT2F9\nhNCoYORMWcOnCi0NPZ6jQ8dG+XSCUL4SnEec1YQohJWYy6aSoF495HHBD8vGkT35\nWtPIoJxEOWgkvpbXo/n+rZ6td/Q8mcvSaFktIYCdfe3qlWSxdg+twiQe82QE503B\nf6NmMcx4ULBTSUf0uGaaoHr+UQKBgQDtY1L9oIzFBjEZc+KUy3DXUZ9FDZvFbjBV\nACKsd3lR+D10/2Mc8Mdo4/cFKsts2RrNPXOa1WNR4QLTuXviBNmjGNyrlc3hYEZP\nqQbyb7r4TPrgLqZpDrJP5FaihOaQpkWzFSKid0fAJzJCden9z5+cm/G4rQldfM0z\npmBPzYRGFQKBgFEDmKZ71MgESFikBnUtTki+tJ98HIRbxOyip/IEt6Wdd4EQpq7n\n+H5Y/Fqw+izSS/ZTjFC+bNsfkXzUjRogfykN2CpuXVXrgYITngpXsdBdfsNoRw4M\nnqFxfwlBUWDFpb2WrMb6JR+7olBaKRrsbNqn5O1537YSFvRjBW+BlKyxAoGBAKEE\nfxVj4jf99C3kiesNd1PFnHe1PFSVYhk1x08elt7/t4f1dp/5vfiqsDIEDgmd1W0j\nYpfCZ+Tw7/720E3Fpm3Xfk6whP57VBXSe9DT8olbhcusONoHyvEf25fO96lj7uEC\n1ARJThTLQW8NFhM/0m7i4/m0/SY5ceK31poqt67lAoGACzZswxSGQQWXctggCbkP\n2Q5k856m1RqiGVfGn+ez5JIpCnOOKAiNfWD0hX4ignkZ+GUxCLHtTzhFV7GgZTpE\nASqIoM5ChlJaGJ6qBG2sJTeVEkk6wtJeyYtVdwcqaIAMvYLNY1LKNicoLb+NKCB8\nJOurWS9BeXal/ptLP/bfjZg=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-ezv51@visionvoyager-bd590.iam.gserviceaccount.com",
+  "client_id": "105680227694769584030",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-ezv51%40visionvoyager-bd590.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
