@@ -1,15 +1,15 @@
 import os
 import pickle
-import numpy as np
+from datetime import datetime
+
 import cv2
-import face_recognition
 import cvzone
+import face_recognition
 import firebase_admin
+import numpy as np
 from firebase_admin import credentials
 from firebase_admin import db
 from firebase_admin import storage
-import numpy as np
-from datetime import datetime
 
 cred = credentials.Certificate("VVDB_KEY.json")
 firebase_admin.initialize_app(cred, {
@@ -19,7 +19,7 @@ firebase_admin.initialize_app(cred, {
 
 bucket = storage.bucket()
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 cap.set(3, 640)
 cap.set(4, 480)
 
@@ -45,7 +45,8 @@ print("Encode File Loaded")
 modeType = 0
 counter = 0
 id = -1
-imgStudent = []
+#imgStudent = []
+imgStudent = np.array([])
 
 while True:
     success, img = cap.read()
@@ -54,6 +55,7 @@ while True:
         continue  # Skip the rest of the loop iteration if img is empty
 
     imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)
+    imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
 
     faceCurFrame = face_recognition.face_locations(imgS)
     encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
@@ -75,45 +77,72 @@ while True:
                 print("Known Face Detected")
                 print(studentIds[matchIndex])
                 y1, x2, y2, x1 = faceLoc
-                y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
+                y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4  # we reduced it by 4 so multiply by 4
+
                 bbox = 55 + x1, 162 + y1, x2 - x1, y2 - y1
                 imgBackground = cvzone.cornerRect(imgBackground, bbox, rt=0)
                 id = studentIds[matchIndex]
+
                 if counter == 0:
                     cvzone.putTextRect(imgBackground, "Loading", (275, 400))
-                    cv2.imshow("FaceDemo...Gangy", imgBackground)
+                    #cv2.imshow("FaceDemo", imgBackground)
                     cv2.waitKey(1)
                     counter = 1
                     modeType = 1
 
         if counter != 0:
-
             if counter == 1:
-                # Get the Data
-                studentInfo = db.reference(f'Students/{id}').get()  # Get that info
+                # Fetch Data
+                studentInfo = db.reference(f'Students/{id}').get()  # Get info
                 print(studentInfo)
+
                 # Get the Image from the storage
                 blob = bucket.get_blob(f'Images/{id}.png')
-                array = np.frombuffer(blob.download_as_string(), np.uint8)
-                imgStudent = cv2.imdecode(array, cv2.COLOR_BGRA2BGR)  # convert to be used by open CV
-                # Update data of attendance
-                datetimeObject = datetime.strptime(studentInfo['last_tracked_time'],
-                                                   "%Y-%m-%d %H:%M:%S")
-                secondsElapsed = (datetime.now() - datetimeObject).total_seconds()
-                print(secondsElapsed)
-                if secondsElapsed > 30:
-                    ref = db.reference(f'Students/{id}')
-                    studentInfo['total_attendance'] += 1
-                    ref.child('total_attendance').set(studentInfo['total_attendance'])
-                    ref.child('last_tracked_time').set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                if blob:
+                    array = np.frombuffer(blob.download_as_string(), np.uint8)
+
+                    # Print some information for debugging
+                    print(f"ID: {id}")
+                    print(f"Length of array: {len(array)}")
+                    print(f"Shape of array: {array.shape}")
+
+                    # Check if the array has valid image data
+                    if len(array) > 0:
+                        imgStudent = cv2.imdecode(array, cv2.COLOR_BGRA2BGR)  # convert to be used by open CV
+
+                        # Print some information for debugging
+                        print(f"Shape of imgStudent: {imgStudent.shape}")
+                        print(f"Size of imgStudent: {imgStudent.size}")
+
+                        # Ensure imgStudent is not empty before assigning
+                        if imgStudent is not None and imgStudent.size != 0:
+                            # Update data of attendance
+                            datetimeObject = datetime.strptime(studentInfo['last_tracked_time'], "%Y-%m-%d %H:%M:%S")
+                            secondsElapsed = (datetime.now() - datetimeObject).total_seconds()
+                            print(secondsElapsed)
+
+                            if secondsElapsed > 30:
+                                ref = db.reference(f'Students/{id}')
+                                studentInfo['total_attendance'] += 1
+                                ref.child('total_attendance').set(studentInfo['total_attendance'])
+                                ref.child('last_tracked_time').set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                            else:
+                                modeType = 3
+                                counter = 0
+                                imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
+                        else:
+                            print(f"Decoding of image for ID {id} failed or imgStudent is empty. Skipping processing.")
+                            # Handle the situation (e.g., set default values or skip processing)
+                    else:
+                        print(f"Image data for ID {id} is empty. Skipping processing.")
+                        # Handle the situation (e.g., set default values or skip processing)
                 else:
-                    modeType = 3
-                    counter = 0
-                    imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
+                    print(f"Blob for ID {id} does not exist. Skipping processing.")
+                    # Handle the situation (e.g., set default values or skip processing)
 
-            if modeType != 3:
+            if modeType != 3 and isinstance(imgStudent, np.ndarray) and imgStudent.size != 0:
 
-                if 10 < counter < 20:
+                if 10 < counter < 20 :
                     modeType = 2
 
                 imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
@@ -150,6 +179,7 @@ while True:
     else:
         modeType = 0
         counter = 0
+
     # cv2.imshow("Webcam", img)
     cv2.imshow("Face Attendance", imgBackground)
     cv2.waitKey(1)
