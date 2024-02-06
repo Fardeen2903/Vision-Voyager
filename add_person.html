@@ -36,9 +36,13 @@
 
 
             <div class="mb-3">
-                <label for="photo" class="form-label">Photo:</label>
-                {{ form.label }} {{ form.photo(class="form-control") }}
-            </div>
+    <label for="photos" class="form-label">Photos:</label>
+    {% for file_field in form.photo %}
+        {{ file_field.label }} {{ file_field() }}
+    {% endfor %}
+</div>
+
+
 
             <button type="submit" class="btn btn-primary">Submit</button>
 
