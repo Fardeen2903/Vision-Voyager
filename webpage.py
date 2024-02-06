@@ -1,14 +1,13 @@
 # Import necessary libraries
-from datetime import datetime
 from flask_wtf.csrf import CSRFProtect
 import firebase_admin
-from flask import Flask, request, redirect, url_for, render_template, flash
+from flask import Flask, request, redirect, url_for, render_template, flash, abort
 from firebase_admin import credentials, firestore, storage
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
-from wtforms import StringField, FileField, MultipleFileField  # Modified
-from flask_wtf.csrf import CSRFProtect, generate_csrf
-import os
+from flask_wtf.file import FileField, FileAllowed, FileRequired, MultipleFileField
+from wtforms import StringField, FileField, MultipleFileField
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 
@@ -21,10 +20,11 @@ csrf.init_app(app)
 
 # Firebase Initialization
 cred = credentials.Certificate("ServiceKey.json")
-firebase_admin.initialize_app(cred, {'storageBucket': 'gs://visionvoyager-bd590.appspot.com'})
+firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyager-bd590.appspot.com'})
+bucket = storage.bucket()
 
 db = firestore.client()
-bucket = storage.bucket()
+
 
 # Allowed extensions for file uploads
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -41,7 +41,7 @@ class AddPersonForm(FlaskForm):
     status = StringField('Status')
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
-    photos = MultipleFileField('Photo')  # Modified
+    photos = MultipleFileField('Photos')
 
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
@@ -65,12 +65,8 @@ def add_person():
         for file in files:
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                file_path = os.path.join('path_to_your_upload_folder', filename)
-                file.save(file_path)
-
-                # This code uploads the file to Firebase Storage
                 blob = bucket.blob(f'photos/{filename}')
-                blob.upload_from_filename(file_path)
+                blob.upload_from_string(file.read(), content_type=file.content_type)
 
                 person_data.setdefault('photo_urls', []).append(blob.public_url)
 
@@ -92,9 +88,8 @@ class EditPersonForm(FlaskForm):
     status = StringField('Status')
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
-    photo = FileField('Photo')
+    photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
 
-# This code creates a route for editing a person's information
 @app.route('/edit_person/<person_id>', methods=['GET', 'POST'])
 def edit_person(person_id):
     person_ref = db.collection('people').document(person_id)
@@ -103,13 +98,11 @@ def edit_person(person_id):
     form = EditPersonForm()
 
     if request.method == 'POST' and form.validate_on_submit():
-        # Get the updated form data
         name = form.name.data
         status = form.status.data
         office_room_number = form.office_room_number.data
         department_or_major = form.department_or_major.data
 
-        # Update the person document
         updated_data = {
             'name': name,
             'status': status,
@@ -121,7 +114,6 @@ def edit_person(person_id):
         flash('Person updated successfully!')
         return redirect(url_for('view_people'))
 
-    # This code loads existing person details into the form fields
     form.name.data = person['name']
     form.status.data = person['status']
     form.office_room_number.data = person['office_room_number']
@@ -129,18 +121,16 @@ def edit_person(person_id):
 
     return render_template('edit_person.html', person_id=person_id, form=form)
 
-
-# This code creates a route for deleting a person
 @app.route('/delete_person/<person_id>', methods=['POST'])
 def delete_person(person_id):
     csrf_token = request.form.get('csrf_token')
 
-    # Validate CSRF token
     if not csrf_token:
-        abort(400)  # Bad Request - CSRF token missing or invalid
+        abort(400)
 
     db.collection('people').document(person_id).delete()
     flash('Person deleted successfully!')
     return redirect(url_for('view_people'))
+
 if __name__ == '__main__':
     app.run(debug=True, port=8000)
