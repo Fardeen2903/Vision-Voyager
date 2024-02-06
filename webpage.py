@@ -1,13 +1,13 @@
 # Import necessary libraries
 from flask_wtf.csrf import CSRFProtect
 import firebase_admin
-from flask import Flask, request, redirect, url_for, render_template, flash, abort
+from flask import Flask, request, redirect, url_for, render_template, flash, abort, session
 from firebase_admin import credentials, firestore, storage
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed, FileRequired, MultipleFileField
-from wtforms import StringField, FileField, MultipleFileField
-from flask_wtf.csrf import CSRFProtect
+from wtforms import StringField
+from flask_wtf.file import MultipleFileField, FileAllowed
+
 
 app = Flask(__name__)
 
@@ -35,6 +35,11 @@ def allowed_file(filename):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+# Custom error handler for 404 errors
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('page_not_found.html'), 404
 
 class AddPersonForm(FlaskForm):
     name = StringField('Name')
@@ -76,12 +81,31 @@ def add_person():
 
     return render_template('add_person.html', form=form)
 
+# Implement a mechanism to constantly check if the URL is correct
+
 @app.route('/view_people')
 def view_people():
+    # Check the URL here, and if incorrect, redirect to the previous working page
+    if not is_url_correct(request.path):
+        flash('Incorrect URL. Redirecting to the previous page.')
+        return redirect(url_for(session.get('last_working_page', 'index')))
+
+    # Store the current page in the session
+    session['last_working_page'] = 'view_people'
+
     people = db.collection('people').stream()
     person_list = [{'doc_id': person.id, **person.to_dict()} for person in people]
     form = FlaskForm()
     return render_template('view_people.html', people=person_list, form=form)
+
+# ...
+
+def is_url_correct(requested_url):
+    # Implement your logic to check if the URL is correct
+    # Return True if correct, False otherwise
+    # Example: Check if the requested URL exists in a list of valid URLs
+    valid_urls = ['/view_people', '/add_person', '/edit_person']
+    return requested_url in valid_urls
 
 class EditPersonForm(FlaskForm):
     name = StringField('Name')
@@ -89,11 +113,14 @@ class EditPersonForm(FlaskForm):
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
-
 @app.route('/edit_person/<person_id>', methods=['GET', 'POST'])
 def edit_person(person_id):
     person_ref = db.collection('people').document(person_id)
     person = person_ref.get().to_dict()
+
+    if person is None:
+        flash('Person not found.')
+        return redirect(url_for('view_people'))
 
     form = EditPersonForm()
 
@@ -114,12 +141,13 @@ def edit_person(person_id):
         flash('Person updated successfully!')
         return redirect(url_for('view_people'))
 
-    form.name.data = person['name']
-    form.status.data = person['status']
-    form.office_room_number.data = person['office_room_number']
-    form.department_or_major.data = person['department_or_major']
+    form.name.data = person.get('name', '')
+    form.status.data = person.get('status', '')
+    form.office_room_number.data = person.get('office_room_number', '')
+    form.department_or_major.data = person.get('department_or_major', '')
 
     return render_template('edit_person.html', person_id=person_id, form=form)
+
 
 @app.route('/delete_person/<person_id>', methods=['POST'])
 def delete_person(person_id):
@@ -134,3 +162,5 @@ def delete_person(person_id):
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)
+
+
