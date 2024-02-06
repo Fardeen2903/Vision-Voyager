@@ -33,6 +33,11 @@
                 {{ form.department_or_major.label }} {{ form.department_or_major(class="form-control") }}
             </div>
 
+            <div class="mb-3">
+                <label for="photo" class="form-label">Photos:</label>
+                {{ form.photos.label }} {{ form.photos(class="form-control", multiple="multiple") }}
+            </div>
+
             <button type="submit" class="btn btn-primary">Submit</button>
         </form>
         <form method="POST" action="{{ url_for('delete_person', person_id=person_id) }}" class="mt-3">
