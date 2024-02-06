@@ -15,34 +15,28 @@
 
             <div class="mb-3">
                 <label for="name" class="form-label">Name:</label>
-                {{ form.label }} {{ form.name(required=True, class="form-control") }}
+                {{ form.name.label }} {{ form.name(required=True, class="form-control") }}
             </div>
 
             <div class="mb-3">
                 <label for="status" class="form-label">Status:</label>
-                {{ form.label }} {{ form.status(required=True, class="form-control") }}
+                {{ form.status.label }} {{ form.status(required=True, class="form-control") }}
             </div>
 
             <div class="mb-3">
                 <label for="office_room_number" class="form-label">Office Room Number:</label>
-                {{ form.label }} {{ form.office_room_number(required=True, class="form-control") }}
+                {{ form.office_room_number.label }} {{ form.office_room_number(required=True, class="form-control") }}
             </div>
 
             <div class="mb-3">
                 <label for="department_or_major" class="form-label">Department or Major:</label>
-                {{ form.label }} {{ form.department_or_major(required=True, class="form-control") }}
+                {{ form.department_or_major.label }} {{ form.department_or_major(required=True, class="form-control") }}
             </div>
 
-
-
             <div class="mb-3">
-    <label for="photos" class="form-label">Photos:</label>
-    {% for file_field in form.photo %}
-        {{ file_field.label }} {{ file_field() }}
-    {% endfor %}
-</div>
-
-
+                <label for="photo" class="form-label">Photos:</label>
+                {{ form.photos.label }} {{ form.photos(class="form-control", multiple="multiple") }}
+            </div>
 
             <button type="submit" class="btn btn-primary">Submit</button>
 
