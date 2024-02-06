@@ -6,14 +6,14 @@ from flask import Flask, request, redirect, url_for, render_template, flash
 from firebase_admin import credentials, firestore, storage
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
-from wtforms import StringField, FileField
+from wtforms import StringField, FileField, MultipleFileField  # Modified
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 import os
 
 app = Flask(__name__)
 
 # This code sets a secret key for Flask-WTF to use for CSRF protection
-app.config['SECRET_KEY'] = 'your_secret_key_here'
+app.config['SECRET_KEY'] = 'verysecretkey'
 
 # This code initializes CSRFProtect after other components
 csrf = CSRFProtect(app)
@@ -21,9 +21,7 @@ csrf.init_app(app)
 
 # Firebase Initialization
 cred = credentials.Certificate("ServiceKey.json")
-firebase_admin.initialize_app(cred, {'storageBucket': 'your-firebase-storage-bucket'})
-
-
+firebase_admin.initialize_app(cred, {'storageBucket': 'gs://visionvoyager-bd590.appspot.com'})
 
 db = firestore.client()
 bucket = storage.bucket()
@@ -43,14 +41,13 @@ class AddPersonForm(FlaskForm):
     status = StringField('Status')
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
-    photo = FileField('Photo')
+    photos = MultipleFileField('Photos')  # Modified
 
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
     form = AddPersonForm()
 
     if form.validate_on_submit():
-
         name = form.name.data
         status = form.status.data
         office_room_number = form.office_room_number.data
@@ -64,20 +61,18 @@ def add_person():
             'department_or_major': department_or_major,
         }
 
+        files = form.photos.data  # Modified
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file_path = os.path.join('path_to_your_upload_folder', filename)
+                file.save(file_path)
 
-        file = form.photo.data
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join('path_to_your_upload_folder', filename)
-            file.save(file_path)
+                # This code uploads the file to Firebase Storage
+                blob = bucket.blob(f'photos/{filename}')
+                blob.upload_from_filename(file_path)
 
-            # This code uploads the file to Firebase Storage
-            blob = bucket.blob(f'photos/{filename}')
-            blob.upload_from_filename(file_path)
-
-
-            person_data['photo_url'] = blob.public_url
-
+                person_data.setdefault('photo_urls', []).append(blob.public_url)
 
         db.collection('people').add(person_data)
         flash('Person added successfully.')
