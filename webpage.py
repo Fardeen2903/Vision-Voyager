@@ -41,7 +41,7 @@ class AddPersonForm(FlaskForm):
     status = StringField('Status')
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
-    photos = MultipleFileField('Photos')  # Modified
+    photos = MultipleFileField('Photo')  # Modified
 
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
@@ -61,7 +61,7 @@ def add_person():
             'department_or_major': department_or_major,
         }
 
-        files = form.photos.data  # Modified
+        files = form.photos.data
         for file in files:
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
