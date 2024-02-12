@@ -46,7 +46,9 @@ class AddPersonForm(FlaskForm):
     status = StringField('Status')
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
-    photos = MultipleFileField('Photos')
+    photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
+
+
 
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
@@ -58,7 +60,6 @@ def add_person():
         office_room_number = form.office_room_number.data
         department_or_major = form.department_or_major.data
 
-        # Create a new person document
         person_data = {
             'name': name,
             'status': status,
@@ -66,20 +67,25 @@ def add_person():
             'department_or_major': department_or_major,
         }
 
-        files = form.photos.data
-        for file in files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                blob = bucket.blob(f'photos/{filename}')
-                blob.upload_from_string(file.read(), content_type=file.content_type)
+        photo_urls = []
 
-                person_data.setdefault('photo_urls', []).append(blob.public_url)
+        if form.photos.data:
+            for file in form.photos.data:
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    blob = bucket.blob(f'photos/{filename}')
+                    blob.upload_from_string(file.read(), content_type=file.content_type)
+                    photo_urls.append(blob.public_url)
+
+        person_data['photo_urls'] = photo_urls
 
         db.collection('people').add(person_data)
         flash('Person added successfully.')
         return redirect(url_for('view_people'))
 
     return render_template('add_person.html', form=form)
+
+
 
 # Implement a mechanism to constantly check if the URL is correct
 
@@ -98,12 +104,9 @@ def view_people():
     form = FlaskForm()
     return render_template('view_people.html', people=person_list, form=form)
 
-# ...
+
 
 def is_url_correct(requested_url):
-    # Implement your logic to check if the URL is correct
-    # Return True if correct, False otherwise
-    # Example: Check if the requested URL exists in a list of valid URLs
     valid_urls = ['/view_people', '/add_person', '/edit_person']
     return requested_url in valid_urls
 
@@ -113,6 +116,8 @@ class EditPersonForm(FlaskForm):
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
+
+
 @app.route('/edit_person/<person_id>', methods=['GET', 'POST'])
 def edit_person(person_id):
     person_ref = db.collection('people').document(person_id)
@@ -162,5 +167,4 @@ def delete_person(person_id):
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000)
-
 
