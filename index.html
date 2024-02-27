@@ -11,7 +11,7 @@
     <div class="container mt-3">
         <h1>Welcome to Vision Voyager</h1>
         <p>This is the home page of your application. You can navigate to other pages using the buttons below.</p>
-        <a href="{{ https://visionvoyager.scm.azurewebsites.net/wwwroot/add_person }}" class="btn btn-primary">Add Person</a>
+        <a href="{{ url_for('add_person') }}" class="btn btn-primary">Add Person</a>
         <a href="{{ url_for('view_people') }}" class="btn btn-secondary">View People</a>
     </div>
     <!-- Bootstrap JS and Popper.js (required for some Bootstrap components) -->
