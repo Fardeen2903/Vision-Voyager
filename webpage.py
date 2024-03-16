@@ -13,7 +13,7 @@ import os
 app = Flask(__name__)
 
 # This code sets a secret key for Flask-WTF to use for CSRF protection
-app.config['SECRET_KEY'] = 'your_secret_key_here'
+app.config['ServiceKey'] = 'ServiceKey.json'
 
 # This code initializes CSRFProtect after other components
 csrf = CSRFProtect(app)
@@ -22,8 +22,6 @@ csrf.init_app(app)
 # Firebase Initialization
 cred = credentials.Certificate("ServiceKey.json")
 firebase_admin.initialize_app(cred, {'storageBucket': 'your-firebase-storage-bucket'})
-
-
 
 db = firestore.client()
 bucket = storage.bucket()
