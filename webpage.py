@@ -12,8 +12,7 @@ import cv2
 import face_recognition
 from app import recognize_face
 import sys
-sys.path.append('/home/bkm5588/Downloads/Vision-Voyager/Face-Rec/app.py')
-
+sys.path.append('app.py')
 
 app = Flask(__name__)
 
@@ -22,8 +21,8 @@ app.config['SECRET_KEY'] = 'verysecretkey'
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 
-cred = credentials.Certificate("ServiceKey.json")
-firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyager-bd590.appspot.com'})
+cred = credentials.Certificate("VVDB_KEY.json")
+firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyagerdb.appspot.com'})
 bucket = storage.bucket()
 
 db = firestore.client()
