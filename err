@@ -1,0 +1,87 @@
+Loading Encode File ...
+Encode File Loaded
+matches [False, False, False]
+faceDis [0.62199212 0.87967397 0.71857898]
+Match Index 0
+matches [False, False, False]
+faceDis [0.64584315 0.87167725 0.75547775]
+Match Index 0
+matches [False, False, False]
+faceDis [0.62662052 0.787955   0.70094601]
+Match Index 0
+matches [False, False, False]
+faceDis [0.63330635 0.80558305 0.69323597]
+Match Index 0
+matches [False, False, False]
+faceDis [0.65372078 0.80359043 0.68355481]
+Match Index 0
+matches [False, False, False]
+faceDis [0.67110163 0.81432382 0.70265386]
+Match Index 0
+matches [False, False, False]
+faceDis [0.65544626 0.77351156 0.7130523 ]
+Match Index 0
+matches [False, False, False]
+faceDis [0.67000347 0.81624008 0.67715819]
+Match Index 0
+matches [False, False, False]
+faceDis [0.68773684 0.82476638 0.68138359]
+Match Index 2
+matches [False, False, False]
+faceDis [0.65554422 0.81287249 0.70388144]
+Match Index 0
+matches [False, False, False]
+faceDis [0.65834158 0.8074994  0.68070788]
+Match Index 0
+matches [False, False, False]
+faceDis [0.67061266 0.80694602 0.6951269 ]
+Match Index 0
+matches [False, False, False]
+faceDis [0.68149659 0.78443672 0.68244659]
+Match Index 0
+matches [False, False, False]
+faceDis [0.67541376 0.80482773 0.68576937]
+Match Index 0
+matches [False, False, False]
+faceDis [0.66152318 0.80051801 0.69737346]
+Match Index 0
+matches [False, False, False]
+faceDis [0.64552474 0.82441072 0.69789848]
+Match Index 0
+matches [False, False, False]
+faceDis [0.65180463 0.82118101 0.70552661]
+Match Index 0
+matches [False, False, False]
+faceDis [0.63645706 0.81546993 0.697847  ]
+Match Index 0
+matches [False, False, False]
+faceDis [0.61939352 0.78823282 0.74118911]
+Match Index 0
+matches [True, False, False]
+faceDis [0.59565341 0.81116521 0.72687302]
+Match Index 0
+Known Face Detected
+123456
+Traceback (most recent call last):
+  File "C:\Users\littl\PycharmProjects\pythonProject\venv\lib\site-packages\firebase_admin\db.py", line 929, in request
+    return super(_Client, self).request(method, url, **kwargs)
+  File "C:\Users\littl\PycharmProjects\pythonProject\venv\lib\site-packages\firebase_admin\_http_client.py", line 119, in request
+    resp.raise_for_status()
+  File "C:\Users\littl\PycharmProjects\pythonProject\venv\lib\site-packages\requests\models.py", line 1021, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://visionvoyagerdb-default-rtdb.firebaseio.com/Students/123456.json
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\littl\OneDrive\Documents\GitHub\Vision-Voyager\webpage.py", line 13, in <module>
+    from app import recognize_face
+  File "C:\Users\littl\OneDrive\Documents\GitHub\Vision-Voyager\app.py", line 119, in <module>
+    studentInfo = db.reference(f'Students/{id}').get()  # Get that info
+  File "C:\Users\littl\PycharmProjects\pythonProject\venv\lib\site-packages\firebase_admin\db.py", line 221, in get
+    return self._client.body('get', self._add_suffix(), params=params)
+  File "C:\Users\littl\PycharmProjects\pythonProject\venv\lib\site-packages\firebase_admin\_http_client.py", line 131, in body
+    resp = self.request(method, url, **kwargs)
+  File "C:\Users\littl\PycharmProjects\pythonProject\venv\lib\site-packages\firebase_admin\db.py", line 931, in request
+    raise _Client.handle_rtdb_error(error)
+firebase_admin.exceptions.UnauthenticatedError: Unauthorized request.
