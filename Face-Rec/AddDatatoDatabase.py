@@ -12,7 +12,7 @@ ref = db.reference('Students')
 data = {
     "123456":
         {
-            "name": "Bryce McLeod",
+            "name": "Fardeen S",
             "major": "Computer Science",
             "starting_year": 2020,
             "total_attendance": 0,
