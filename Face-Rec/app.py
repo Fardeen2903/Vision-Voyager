@@ -10,14 +10,40 @@ from firebase_admin import db
 from firebase_admin import storage
 import numpy as np
 from datetime import datetime
+from flask import Flask, render_template
 
-cred = credentials.Certificate("VVDB_KEY.json")
+cred = credentials.Certificate("ServiceKey.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': "https://visionvoyagerdb-default-rtdb.firebaseio.com/",
     'storageBucket': "visionvoyagerdb.appspot.com/Images"
 })
 
 bucket = storage.bucket()
+
+# Function to recognize face from an image array
+def recognize_face(img_array):
+    # Load the encoding file just once
+    try:
+        global encodeListKnown
+    except NameError:
+        file = open('EncodeFile.p', 'rb')
+        encodeListKnownWithIds = pickle.load(file)
+        file.close()
+        encodeListKnown, studentIds = encodeListKnownWithIds
+
+    face_locations = face_recognition.face_locations(img_array)
+    face_encodings = face_recognition.face_encodings(img_array, face_locations)
+
+    recognized_ids = []
+    for encodeFace in face_encodings:
+        matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
+        faceDis = face_recognition.face_distance(encodeListKnown, encodeFace)
+        matchIndex = np.argmin(faceDis)
+        if matches[matchIndex]:
+            recognized_id = studentIds[matchIndex]
+            recognized_ids.append(recognized_id)
+
+    return recognized_ids if recognized_ids else None
 
 cap = cv2.VideoCapture(0)
 cap.set(3, 640)
@@ -26,7 +52,7 @@ cap.set(4, 480)
 imgBackground = cv2.imread('Resources/backgroundV.png')
 
 # Importing the mode images into a list
-folderModePath = 'Resources/Modes'
+folderModePath = '/home/bkm5588/Downloads/Vision-Voyager/Face-Rec/Resources/Modes'
 modePathList = os.listdir(folderModePath)
 imgModeList = []
 for path in modePathList:
@@ -35,7 +61,7 @@ for path in modePathList:
 
 # Load the encoding file
 print("Loading Encode File ...")
-file = open('EncodeFile.p', 'rb')
+file = open('/home/bkm5588/Downloads/Vision-Voyager/Face-Rec/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
