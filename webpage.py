@@ -1,32 +1,33 @@
 # Import necessary libraries
 from flask_wtf.csrf import CSRFProtect
 import firebase_admin
-from flask import Flask, request, redirect, url_for, render_template, flash, abort, session
+from flask import Flask, request, redirect, url_for, render_template, flash, abort, session, jsonify
 from firebase_admin import credentials, firestore, storage
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from flask_wtf.file import MultipleFileField, FileAllowed
+import numpy as np
+import cv2
+import face_recognition
+from app import recognize_face
+import sys
+sys.path.append('/home/bkm5588/Downloads/Vision-Voyager/Face-Rec/app.py')
 
 
 app = Flask(__name__)
 
-# This code sets a secret key for Flask-WTF to use for CSRF protection
 app.config['SECRET_KEY'] = 'verysecretkey'
 
-# This code initializes CSRFProtect after other components
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 
-# Firebase Initialization
 cred = credentials.Certificate("ServiceKey.json")
 firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyager-bd590.appspot.com'})
 bucket = storage.bucket()
 
 db = firestore.client()
 
-
-# Allowed extensions for file uploads
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
@@ -36,7 +37,6 @@ def allowed_file(filename):
 def index():
     return render_template('index.html')
 
-# Custom error handler for 404 errors
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('page_not_found.html'), 404
@@ -47,8 +47,6 @@ class AddPersonForm(FlaskForm):
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
-
-
 
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
@@ -85,10 +83,6 @@ def add_person():
 
     return render_template('add_person.html', form=form)
 
-
-
-# Implement a mechanism to constantly check if the URL is correct
-
 @app.route('/view_people')
 def view_people():
     # Check the URL here, and if incorrect, redirect to the previous working page
@@ -104,7 +98,53 @@ def view_people():
     form = FlaskForm()
     return render_template('view_people.html', people=person_list, form=form)
 
+@app.route('/face_recognition', methods=['POST'])
+def face_recognition():
+    # Get the image file from the request
+    file = request.files['image']
 
+    # Convert the image file to a numpy array
+    img_np = np.fromstring(file.read(), np.uint8)
+    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
+
+    # Perform face recognition on the image
+    face_locations = face_recognition.face_locations(img)
+    face_encodings = face_recognition.face_encodings(img, face_locations)
+
+    # Process the detected faces (e.g., identify known faces, draw bounding boxes)
+
+    # Prepare the response data
+    response_data = {
+        'faces_detected': len(face_locations),
+        'face_locations': face_locations,  # Optionally, you can convert to a format suitable for JSON serialization
+        # Add other relevant data here
+    }
+
+    # Return the response as JSON
+    return jsonify(response_data)
+
+@app.route('/find_person', methods=['POST'])
+def find_person():
+    # Check if the post request has the file part
+    if 'image' not in request.files:
+        flash('No file part')
+        return redirect(request.url)
+    file = request.files['image']
+    # If the user does not select a file, the browser submits an
+    # empty file without a filename.
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(request.url)
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # Read the image file in a format suitable for OpenCV
+        img = face_recognition.load_image_file(file)
+        # Call the face recognition function
+        person_found = recognize_face(img)
+        if person_found:
+            return jsonify({"found": True, "person": person_found})
+        else:
+            return jsonify({"found": False})
 
 def is_url_correct(requested_url):
     valid_urls = ['/view_people', '/add_person', '/edit_person']
@@ -116,7 +156,6 @@ class EditPersonForm(FlaskForm):
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
-
 
 @app.route('/edit_person/<person_id>', methods=['GET', 'POST'])
 def edit_person(person_id):
@@ -153,13 +192,20 @@ def edit_person(person_id):
 
     return render_template('edit_person.html', person_id=person_id, form=form)
 
-
 @app.route('/delete_person/<person_id>', methods=['POST'])
 def delete_person(person_id):
     csrf_token = request.form.get('csrf_token')
 
     if not csrf_token:
         abort(400)
+
+    db.collection('people').document(person_id).delete()
+    flash('Person deleted successfully!')
+    return redirect(url_for('view_people'))
+
+@app.route('/test_app')
+def test_app():
+    return render_template('test_app.html')
 
     db.collection('people').document(person_id).delete()
     flash('Person deleted successfully!')
