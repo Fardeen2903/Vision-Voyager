@@ -12,10 +12,10 @@ import numpy as np
 from datetime import datetime
 from flask import Flask, render_template
 
-cred = credentials.Certificate("ServiceKey.json")
+cred = credentials.Certificate("VVDB_KEY.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': "https://visionvoyagerdb-default-rtdb.firebaseio.com/",
-    'storageBucket': "visionvoyagerdb.appspot.com/Images"
+    'storageBucket': "visionvoyagerdb.appspot.com"
 })
 
 bucket = storage.bucket()
@@ -26,7 +26,7 @@ def recognize_face(img_array):
     try:
         global encodeListKnown
     except NameError:
-        file = open('EncodeFile.p', 'rb')
+        file = open('Face-Rec/EncodeFile.p', 'rb')
         encodeListKnownWithIds = pickle.load(file)
         file.close()
         encodeListKnown, studentIds = encodeListKnownWithIds
@@ -49,10 +49,10 @@ cap = cv2.VideoCapture(0)
 cap.set(3, 640)
 cap.set(4, 480)
 
-imgBackground = cv2.imread('Resources/backgroundV.png')
+imgBackground = cv2.imread('Resources/background.png')
 
 # Importing the mode images into a list
-folderModePath = '/home/bkm5588/Downloads/Vision-Voyager/Face-Rec/Resources/Modes'
+folderModePath = 'C:\\Users\\littl\\OneDrive\\Documents\\GitHub\\Vision-Voyager\\Face-Rec\\Resources\\Modes'
 modePathList = os.listdir(folderModePath)
 imgModeList = []
 for path in modePathList:
@@ -61,7 +61,7 @@ for path in modePathList:
 
 # Load the encoding file
 print("Loading Encode File ...")
-file = open('/home/bkm5588/Downloads/Vision-Voyager/Face-Rec/EncodeFile.p', 'rb')
+file = open('Face-Rec/EncodeFile.p', 'rb')
 encodeListKnownWithIds = pickle.load(file)
 file.close()
 encodeListKnown, studentIds = encodeListKnownWithIds
