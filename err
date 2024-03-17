@@ -85,3 +85,16 @@ Traceback (most recent call last):
   File "C:\Users\littl\PycharmProjects\pythonProject\venv\lib\site-packages\firebase_admin\db.py", line 931, in request
     raise _Client.handle_rtdb_error(error)
 firebase_admin.exceptions.UnauthenticatedError: Unauthorized request.
+
+
+
+cred = credentials.Certificate("VVDB_KEY.json")
+firebase_admin.initialize_app(cred, {
+    'databaseURL': "https://visionvoyagerdb-default-rtdb.firebaseio.com/",
+    'storageBucket': "//visionvoyagerdb.appspot.com"
+})
+
+
+cred = credentials.Certificate("VVDB_KEY.json")
+firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyagerdb.appspot.com'})
+bucket = storage.bucket()
