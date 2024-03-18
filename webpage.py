@@ -1,44 +1,111 @@
 # Import necessary libraries
 from flask_wtf.csrf import CSRFProtect
 import firebase_admin
-from flask import Flask, request, redirect, url_for, render_template, flash, abort, session, jsonify
+from flask import Flask, request, redirect, url_for, render_template, flash, abort, session
 from firebase_admin import credentials, firestore, storage
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
-from wtforms import StringField
+from wtforms import StringField, PasswordField, SubmitField
 from flask_wtf.file import MultipleFileField, FileAllowed
-import numpy as np
-import cv2
-import face_recognition
-from app import recognize_face
-import sys
-sys.path.append('app.py')
+from wtforms.validators import DataRequired, Length, EqualTo
+from datetime import datetime
 
 app = Flask(__name__)
 
+# This code sets a secret key for Flask-WTF to use for CSRF protection
 app.config['SECRET_KEY'] = 'verysecretkey'
 
+# This code initializes CSRFProtect after other components
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 
-cred = credentials.Certificate("VVDB_KEY.json")
-firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyagerdb.appspot.com'})
+# Firebase Initialization
+cred = credentials.Certificate("ServiceKey.json")
+firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyager-bd590.appspot.com'})
 bucket = storage.bucket()
 
 db = firestore.client()
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# Dummy user data for demonstration purposes
+USERS = {
+    'user1': 'password1',
+    'user2': 'password2'
+}
+
+# CSRF protection
+csrf = CSRFProtect(app)
+csrf.init_app(app)
+
+# Registration form
+class RegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Sign Up')
+
+# Login form
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Login')
+
+# Route for user registration
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        password = form.password.data
+        # You can add code here to store user data in Firebase or another database
+        flash('Registration successful. Please login.', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html', form=form)
+
+# Route for user login
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        password = form.password.data
+        # Check if the username and password match a user in the USERS dictionary
+        if USERS.get(username) == password:
+            session['username'] = username
+            flash('Login successful!', 'success')
+            return redirect(url_for('home'))
+        else:
+            flash('Invalid username or password. Please try again.', 'error')
+    return render_template('login.html', form=form)
+
+# Route for user logout
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    flash('You have been logged out', 'info')
+    return redirect(url_for('index'))
+
+# Home route
+@app.route('/home')
+def home():
+    if 'username' in session:
+        return render_template('home.html', username=session['username'])
+    else:
+        flash('You need to login first', 'error')
+        return redirect(url_for('login'))
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template('page_not_found.html'), 404
+
+
+
+# Allowed extensions for file uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 class AddPersonForm(FlaskForm):
     name = StringField('Name')
@@ -50,7 +117,6 @@ class AddPersonForm(FlaskForm):
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
     form = AddPersonForm()
-
     if form.validate_on_submit():
         name = form.name.data
         status = form.status.data
@@ -84,70 +150,10 @@ def add_person():
 
 @app.route('/view_people')
 def view_people():
-    # Check the URL here, and if incorrect, redirect to the previous working page
-    if not is_url_correct(request.path):
-        flash('Incorrect URL. Redirecting to the previous page.')
-        return redirect(url_for(session.get('last_working_page', 'index')))
-
-    # Store the current page in the session
-    session['last_working_page'] = 'view_people'
-
     people = db.collection('people').stream()
     person_list = [{'doc_id': person.id, **person.to_dict()} for person in people]
     form = FlaskForm()
     return render_template('view_people.html', people=person_list, form=form)
-
-@app.route('/face_recognition', methods=['POST'])
-def face_recognition():
-    # Get the image file from the request
-    file = request.files['image']
-
-    # Convert the image file to a numpy array
-    img_np = np.fromstring(file.read(), np.uint8)
-    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-
-    # Perform face recognition on the image
-    face_locations = face_recognition.face_locations(img)
-    face_encodings = face_recognition.face_encodings(img, face_locations)
-
-    # Process the detected faces (e.g., identify known faces, draw bounding boxes)
-
-    # Prepare the response data
-    response_data = {
-        'faces_detected': len(face_locations),
-        'face_locations': face_locations,  # Optionally, you can convert to a format suitable for JSON serialization
-        # Add other relevant data here
-    }
-
-    # Return the response as JSON
-    return jsonify(response_data)
-
-@app.route('/find_person', methods=['POST'])
-def find_person():
-    # Check if the post request has the file part
-    if 'image' not in request.files:
-        flash('No file part')
-        return redirect(request.url)
-    file = request.files['image']
-    # If the user does not select a file, the browser submits an
-    # empty file without a filename.
-    if file.filename == '':
-        flash('No selected file')
-        return redirect(request.url)
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        # Read the image file in a format suitable for OpenCV
-        img = face_recognition.load_image_file(file)
-        # Call the face recognition function
-        person_found = recognize_face(img)
-        if person_found:
-            return jsonify({"found": True, "person": person_found})
-        else:
-            return jsonify({"found": False})
-
-def is_url_correct(requested_url):
-    valid_urls = ['/view_people', '/add_person', '/edit_person']
-    return requested_url in valid_urls
 
 class EditPersonForm(FlaskForm):
     name = StringField('Name')
@@ -202,13 +208,10 @@ def delete_person(person_id):
     flash('Person deleted successfully!')
     return redirect(url_for('view_people'))
 
-@app.route('/test_app')
-def test_app():
-    return render_template('test_app.html')
-
-    db.collection('people').document(person_id).delete()
-    flash('Person deleted successfully!')
-    return redirect(url_for('view_people'))
+# Custom error handler for 404 errors
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('page_not_found.html'), 404
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0", port=8000)
+    app.run(debug=True, port=8000)
