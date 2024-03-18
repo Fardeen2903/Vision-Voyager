@@ -98,3 +98,7 @@ firebase_admin.initialize_app(cred, {
 cred = credentials.Certificate("VVDB_KEY.json")
 firebase_admin.initialize_app(cred, {'storageBucket': 'visionvoyagerdb.appspot.com'})
 bucket = storage.bucket()
+
+
+
+https://console.cloud.google.com/apis/api/firestore.googleapis.com/metrics?project=visionvoyagerdb
