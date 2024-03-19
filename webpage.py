@@ -9,6 +9,8 @@ from wtforms import StringField, PasswordField, SubmitField
 from flask_wtf.file import MultipleFileField, FileAllowed
 from wtforms.validators import DataRequired, Length, EqualTo
 from datetime import datetime
+from firebase_admin import auth
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -26,7 +28,6 @@ bucket = storage.bucket()
 
 db = firestore.client()
 
-
 # Dummy user data for demonstration purposes
 USERS = {
     'user1': 'password1',
@@ -36,6 +37,16 @@ USERS = {
 # CSRF protection
 csrf = CSRFProtect(app)
 csrf.init_app(app)
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('You need to login first', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 # Registration form
 class RegistrationForm(FlaskForm):
@@ -62,28 +73,41 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html', form=form)
 
-# Route for user login
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
     if form.validate_on_submit():
         username = form.username.data
         password = form.password.data
-        # Check if the username and password match a user in the USERS dictionary
-        if USERS.get(username) == password:
-            session['username'] = username
+        try:
+            user = auth.get_user_by_email(username)  # Assuming username is the email
+            auth_user = auth.sign_in_with_email_and_password(username, password)
+            session['user_id'] = auth_user['localId']
             flash('Login successful!', 'success')
-            return redirect(url_for('home'))
-        else:
+            return redirect(url_for('view_people'))
+        except Exception as e:
             flash('Invalid username or password. Please try again.', 'error')
     return render_template('login.html', form=form)
 
-# Route for user logout
+
+@app.route('/authenticate', methods=['POST'])
+def authenticate():
+    password = request.form.get('password')
+    if password == '123':  # Replace 'your_password' with the actual password
+        session['authenticated'] = True
+        flash('Authentication successful!', 'success')
+        return redirect(url_for('view_people'))
+    else:
+        flash('Invalid password. Please try again.', 'error')
+        return redirect(url_for('view_people'))
+
 @app.route('/logout')
 def logout():
-    session.pop('username', None)
+    session.pop('user_id', None)
     flash('You have been logged out', 'info')
     return redirect(url_for('index'))
+
 
 # Home route
 @app.route('/home')
@@ -98,9 +122,6 @@ def home():
 def index():
     return render_template('index.html')
 
-
-
-
 # Allowed extensions for file uploads
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
@@ -114,6 +135,7 @@ class AddPersonForm(FlaskForm):
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
 
+@login_required
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
     form = AddPersonForm()
@@ -152,8 +174,14 @@ def add_person():
 def view_people():
     people = db.collection('people').stream()
     person_list = [{'doc_id': person.id, **person.to_dict()} for person in people]
-    form = FlaskForm()
-    return render_template('view_people.html', people=person_list, form=form)
+
+    for person in person_list:
+        # Determine if authentication is required for editing this person
+        person['require_authentication'] = True  # Set it to True by default
+        if 'authenticated' in session:
+            person['require_authentication'] = False
+
+    return render_template('view_people.html', people=person_list, form=FlaskForm())
 
 class EditPersonForm(FlaskForm):
     name = StringField('Name')
@@ -163,7 +191,9 @@ class EditPersonForm(FlaskForm):
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
 
 @app.route('/edit_person/<person_id>', methods=['GET', 'POST'])
+@login_required
 def edit_person(person_id):
+    # Retrieve the person's data from Firestore
     person_ref = db.collection('people').document(person_id)
     person = person_ref.get().to_dict()
 
@@ -171,8 +201,10 @@ def edit_person(person_id):
         flash('Person not found.')
         return redirect(url_for('view_people'))
 
+    # Create the form instance
     form = EditPersonForm()
 
+    # Process the form data if it's a POST request and the form is valid
     if request.method == 'POST' and form.validate_on_submit():
         name = form.name.data
         status = form.status.data
@@ -186,10 +218,12 @@ def edit_person(person_id):
             'department_or_major': department_or_major,
         }
 
+        # Update the person's data in Firestore
         person_ref.update(updated_data)
         flash('Person updated successfully!')
         return redirect(url_for('view_people'))
 
+    # Populate the form fields with the person's data
     form.name.data = person.get('name', '')
     form.status.data = person.get('status', '')
     form.office_room_number.data = person.get('office_room_number', '')
@@ -198,6 +232,7 @@ def edit_person(person_id):
     return render_template('edit_person.html', person_id=person_id, form=form)
 
 @app.route('/delete_person/<person_id>', methods=['POST'])
+@login_required
 def delete_person(person_id):
     csrf_token = request.form.get('csrf_token')
 
