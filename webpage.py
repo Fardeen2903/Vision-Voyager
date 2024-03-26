@@ -11,6 +11,8 @@ from wtforms.validators import DataRequired, Length, EqualTo
 from datetime import datetime
 from firebase_admin import auth
 from functools import wraps
+from flask_login import login_required
+
 
 app = Flask(__name__)
 
@@ -57,7 +59,6 @@ class RegistrationForm(FlaskForm):
 
 # Login form
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
@@ -73,34 +74,37 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html', form=form)
 
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        username = form.username.data
         password = form.password.data
-        try:
-            user = auth.get_user_by_email(username)  # Assuming username is the email
-            auth_user = auth.sign_in_with_email_and_password(username, password)
-            session['user_id'] = auth_user['localId']
+        # Here, you can implement your custom authentication logic
+        if password == '123':  # Replace 'your_password' with the actual password
+            session['user_id'] = 1  # Set the user ID upon successful authentication
             flash('Login successful!', 'success')
-            return redirect(url_for('view_people'))
-        except Exception as e:
-            flash('Invalid username or password. Please try again.', 'error')
+            return redirect(url_for('view_people'))  # Redirect to the list of people page
+        else:
+            flash('Invalid password. Please try again.', 'error')
     return render_template('login.html', form=form)
+
+
 
 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
     password = request.form.get('password')
-    if password == '123':  # Replace 'your_password' with the actual password
+    redirect_url = request.form.get('redirect_url')
+
+    if password == '123':  # Bypass authentication for password '123'
         session['authenticated'] = True
         flash('Authentication successful!', 'success')
-        return redirect(url_for('view_people'))
+        return redirect(redirect_url)  # Redirect to the intended action URL after authentication
     else:
         flash('Invalid password. Please try again.', 'error')
         return redirect(url_for('view_people'))
+
+
 
 @app.route('/logout')
 def logout():
@@ -135,7 +139,7 @@ class AddPersonForm(FlaskForm):
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
 
-@login_required
+
 @app.route('/add_person', methods=['GET', 'POST'])
 def add_person():
     form = AddPersonForm()
@@ -176,10 +180,11 @@ def view_people():
     person_list = [{'doc_id': person.id, **person.to_dict()} for person in people]
 
     for person in person_list:
-        # Determine if authentication is required for editing this person
-        person['require_authentication'] = True  # Set it to True by default
+        # Determine if authentication is required for editing or deleting this person
         if 'authenticated' in session:
-            person['require_authentication'] = False
+            person['require_authentication'] = False  # User is authenticated, no authentication required
+        else:
+            person['require_authentication'] = True  # User is not authenticated, authentication required
 
     return render_template('view_people.html', people=person_list, form=FlaskForm())
 
@@ -190,10 +195,10 @@ class EditPersonForm(FlaskForm):
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
 
+
 @app.route('/edit_person/<person_id>', methods=['GET', 'POST'])
 @login_required
 def edit_person(person_id):
-    # Retrieve the person's data from Firestore
     person_ref = db.collection('people').document(person_id)
     person = person_ref.get().to_dict()
 
@@ -201,11 +206,13 @@ def edit_person(person_id):
         flash('Person not found.')
         return redirect(url_for('view_people'))
 
-    # Create the form instance
     form = EditPersonForm()
 
-    # Process the form data if it's a POST request and the form is valid
     if request.method == 'POST' and form.validate_on_submit():
+        if 'authenticated' not in session:
+            flash('Authentication required to edit person.', 'error')
+            return redirect(url_for('login'))
+
         name = form.name.data
         status = form.status.data
         office_room_number = form.office_room_number.data
@@ -218,12 +225,10 @@ def edit_person(person_id):
             'department_or_major': department_or_major,
         }
 
-        # Update the person's data in Firestore
         person_ref.update(updated_data)
         flash('Person updated successfully!')
-        return redirect(url_for('view_people'))
+        return redirect(url_for('view_people'))  # Redirect to view_people after successful edit
 
-    # Populate the form fields with the person's data
     form.name.data = person.get('name', '')
     form.status.data = person.get('status', '')
     form.office_room_number.data = person.get('office_room_number', '')
@@ -231,13 +236,22 @@ def edit_person(person_id):
 
     return render_template('edit_person.html', person_id=person_id, form=form)
 
+
+
+
+
 @app.route('/delete_person/<person_id>', methods=['POST'])
-@login_required
+@login_required  # Use the login_required decorator to ensure authentication
 def delete_person(person_id):
     csrf_token = request.form.get('csrf_token')
 
     if not csrf_token:
         abort(400)
+
+    # Check if the user is authenticated
+    if 'authenticated' not in session:
+        flash('Authentication required to delete person.', 'error')
+        return redirect(url_for('login'))
 
     db.collection('people').document(person_id).delete()
     flash('Person deleted successfully!')
