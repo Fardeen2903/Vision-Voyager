@@ -19,7 +19,7 @@ firebase_admin.initialize_app(cred, {
 bucket = storage.bucket()
 encodeListKnown = None
 studentIds = None
-imgModeList=[]
+imgModeList = []
 
 class FaceRecognitionApp:
     def __init__(self, root):

@@ -18,7 +18,7 @@ import os
 import base64
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'verysecretkey'
+app.config['SECRET_KEY'] = 'lv_key'
 csrf = CSRFProtect(app)
 csrf.init_app(app)
 
@@ -185,7 +185,12 @@ def find_person():
             return jsonify({"found": False}), 404
 
 def is_url_correct(requested_url):
-    valid_urls = ['/view_people', '/add_person', '/edit_person']
+    valid_urls = ['/view_people',
+                  '/add_person',
+                  '/edit_person',
+                  '/index',
+                  '/test_app',
+                  ]
     return requested_url in valid_urls
 
 class EditPersonForm(FlaskForm):
@@ -244,7 +249,6 @@ def delete_person(person_id):
 
 @app.route('/test_app')
 def test_app():
-    # This route will render the test_app.html template that includes a button to start the face recognition process
     return render_template('test_app.html')
 
 @app.route('/start_face_recognition', methods=['GET'])
