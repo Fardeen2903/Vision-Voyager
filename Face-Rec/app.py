@@ -3,33 +3,65 @@ import pickle
 import numpy as np
 import cv2
 import face_recognition
-import cvzone
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
-from firebase_admin import storage
-import numpy as np
+from firebase_admin import credentials, db, storage
 from datetime import datetime
-from flask import Flask, render_template
+import tempfile
 
+# Initialize Firebase Admin
 cred = credentials.Certificate("VVDB_KEY.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': "https://visionvoyagerdb-default-rtdb.firebaseio.com/",
     'storageBucket': "visionvoyagerdb.appspot.com"
 })
 
+# Global variables
 bucket = storage.bucket()
+encodeListKnown = None  # Global variable for known face encodings
+studentIds = None  # Global variable for corresponding student IDs
+imgModeList=[]
+
+def start_face_recognition_process():
+    # Capture a frame from the camera
+    cap = cv2.VideoCapture(0)  # 0 is typically the default camera
+    success, img = cap.read()
+    cap.release()
+
+    if not success:
+        return {'error': 'Failed to capture image'}
+
+    # Resize image for faster face recognition processing
+    small_frame = cv2.resize(img, (0, 0), fx=0.25, fy=0.25)
+
+    # Find all face locations and encodings in the current frame
+    face_locations = face_recognition.face_locations(small_frame)
+    face_encodings = face_recognition.face_encodings(small_frame, face_locations)
+
+    recognized_ids = []
+    for face_encoding in face_encodings:
+        # See if the face is a match for known faces
+        matches = face_recognition.compare_faces(encodeListKnown, face_encoding)
+        name = "Unknown"  # In case we didn't recognize the person
+
+        # Use the known face with the smallest distance to the new face
+        face_distances = face_recognition.face_distance(encodeListKnown, face_encoding)
+        best_match_index = np.argmin(face_distances)
+        if matches[best_match_index]:
+            recognized_id = studentIds[best_match_index]
+            recognized_ids.append(recognized_id)
+
+    # Return information about the recognized faces
+    return {'recognized_ids': recognized_ids}
 
 # Function to recognize face from an image array
 def recognize_face(img_array):
+    global encodeListKnown, studentIds
+
     # Load the encoding file just once
-    try:
-        global encodeListKnown
-    except NameError:
-        file = open('Face-Rec/EncodeFile.p', 'rb')
-        encodeListKnownWithIds = pickle.load(file)
-        file.close()
-        encodeListKnown, studentIds = encodeListKnownWithIds
+    if encodeListKnown is None or studentIds is None:
+        with open('Face-Rec/EncodeFile.p', 'rb') as file:
+            encodeListKnownWithIds = pickle.load(file)
+            encodeListKnown, studentIds = encodeListKnownWithIds
 
     face_locations = face_recognition.face_locations(img_array)
     face_encodings = face_recognition.face_encodings(img_array, face_locations)
@@ -45,137 +77,143 @@ def recognize_face(img_array):
 
     return recognized_ids if recognized_ids else None
 
-cap = cv2.VideoCapture(0)
-cap.set(3, 640)
-cap.set(4, 480)
+def main():
+    global encodeListKnown, studentIds, imgModeList  # Declare global variables
 
-imgBackground = cv2.imread('Resources/background.png')
+    # Initialize 'modeType' and 'counter' at the start of the function
+    modeType = 0
+    counter = 0
 
-# Importing the mode images into a list
-folderModePath = 'C:\\Users\\littl\\OneDrive\\Documents\\GitHub\\Vision-Voyager\\Face-Rec\\Resources\\Modes'
-modePathList = os.listdir(folderModePath)
-imgModeList = []
-for path in modePathList:
-    imgModeList.append(cv2.imread(os.path.join(folderModePath, path)))
-# print(len(imgModeList))
+    # Load the background image
+    background = cv2.imread('C:\\Users\\littl\\OneDrive\\Documents\\GitHub\\Vision-Voyager\\Face-Rec\\Resources\\overlay.jpg')
 
-# Load the encoding file
-print("Loading Encode File ...")
-file = open('Face-Rec/EncodeFile.p', 'rb')
-encodeListKnownWithIds = pickle.load(file)
-file.close()
-encodeListKnown, studentIds = encodeListKnownWithIds
-# print(studentIds)
-print("Encode File Loaded")
+    # Initialize face encodings
+    if encodeListKnown is None or studentIds is None:
+        # Load face encodings from file
+        with open('Face-Rec/EncodeFile.p', 'rb') as file:
+            encodeListKnownWithIds = pickle.load(file)
+            encodeListKnown, studentIds = encodeListKnownWithIds
 
-modeType = 0
-counter = 0
-id = -1
-imgStudent = []
+    # Check if encodings were loaded correctly
+    if encodeListKnown is None:
+        print("Error: Known face encodings not loaded.")
+        return  # Exit the function if no encodings were loaded
 
-while True:
-    success, img = cap.read()
+    # Initialize the camera and settings for face recognition
+    cv2.namedWindow("Lion Vision")  # Create a named window
+    cap = cv2.VideoCapture(0)  # Use the default camera
+    cap.set(3, 640)  # Set the width
+    cap.set(4, 480)  # Set the height
 
-    if not success or img is None:
-        continue  # Skip the rest of the loop iteration if img is empty
+    # Main loop for processing video frames
+    while cv2.getWindowProperty("Lion Vision", 0) >= 0:  # Check if the window is still open
+        success, img = cap.read()
+        if not success:
+            continue  # Skip the rest of the loop if no image was captured
 
-    imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)
+        # Resize the background image to match the camera frame size
+        background_resized = cv2.resize(background, (640, 480))
 
-    faceCurFrame = face_recognition.face_locations(imgS)
-    encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
+        # Resize the image for faster face recognition processing
+        imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)
+        faceCurFrame = face_recognition.face_locations(imgS)
+        encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
 
-    imgBackground[162:162 + 480, 55:55 + 640] = img
-    imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
+        # Overlay the camera frame on top of the resized background
+        imgDisplay = cv2.addWeighted(background_resized, 0.5, img, 0.5, 0)
 
-    if faceCurFrame:
-        for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
-            matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
-            faceDis = face_recognition.face_distance(encodeListKnown, encodeFace)
-            print("matches", matches)
-            print("faceDis", faceDis)
+        # Handle face recognition results
+        if faceCurFrame:
+            recognized_ids = recognize_faces_from_frame(faceCurFrame, encodeCurFrame)
+            display_recognition_results(recognized_ids, imgDisplay, modeType, counter, imgModeList)
+        else:
+            modeType, counter = reset_mode(imgDisplay, modeType, counter, imgModeList)
 
-            matchIndex = np.argmin(faceDis)
-            print("Match Index", matchIndex)
+        # Display the resulting frame with any UI updates
+        cv2.imshow("Lion Vision", imgDisplay)
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # Allow exiting the loop with the 'q' key
+            break
 
-            if matches[matchIndex]:
-                print("Known Face Detected")
-                print(studentIds[matchIndex])
-                y1, x2, y2, x1 = faceLoc
-                y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
-                bbox = 55 + x1, 162 + y1, x2 - x1, y2 - y1
-                imgBackground = cvzone.cornerRect(imgBackground, bbox, rt=0)
-                id = studentIds[matchIndex]
-                if counter == 0:
-                    cvzone.putTextRect(imgBackground, "Loading", (275, 400))
-                    cv2.imshow("FaceDemo...Gangy", imgBackground)
-                    cv2.waitKey(1)
-                    counter = 1
-                    modeType = 1
+    # Clean up: release the camera and close all windows
+    cap.release()
+    cv2.destroyAllWindows()
 
-        if counter != 0:
 
-            if counter == 1:
-                # Get the Data
-                studentInfo = db.reference(f'Students/{id}').get()  # Get that info
-                print(studentInfo)
-                # Get the Image from the storage
-                blob = bucket.get_blob(f'Images/{id}.png')
-                array = np.frombuffer(blob.download_as_string(), np.uint8)
-                imgStudent = cv2.imdecode(array, cv2.COLOR_BGRA2BGR)  # convert to be used by open CV
-                # Update data of attendance
-                datetimeObject = datetime.strptime(studentInfo['last_tracked_time'],
-                                                   "%Y-%m-%d %H:%M:%S")
-                secondsElapsed = (datetime.now() - datetimeObject).total_seconds()
-                print(secondsElapsed)
-                if secondsElapsed > 30:
-                    ref = db.reference(f'Students/{id}')
-                    studentInfo['total_attendance'] += 1
-                    ref.child('total_attendance').set(studentInfo['total_attendance'])
-                    ref.child('last_tracked_time').set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                else:
-                    modeType = 3
-                    counter = 0
-                    imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
+def recognize_faces_from_frame(faceCurFrame, encodeCurFrame):
+    global encodeListKnown, studentIds
+    recognized_ids = []
+    for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
+        matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
+        faceDis = face_recognition.face_distance(encodeListKnown, encodeFace)
+        matchIndex = np.argmin(faceDis)
+        if matches[matchIndex]:
+            recognized_id = studentIds[matchIndex]
+            recognized_ids.append(recognized_id)
+    return recognized_ids
 
-            if modeType != 3:
 
-                if 10 < counter < 20:
-                    modeType = 2
+def display_recognition_results(recognized_ids, imgDisplay, modeType, counter, imgModeList):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1.0
+    font_color = (255, 255, 255)  # White color for text
+    thickness = 2
+    line_height = 35  # Space between lines
 
-                imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
+    # Start position for the first line of text
+    base_x, base_y = 50, 50
 
-                if counter <= 10:
-                    cv2.putText(imgBackground, str(studentInfo['total_attendance']), (861, 125),
-                                cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
-                    cv2.putText(imgBackground, str(studentInfo['major']), (1006, 550),
-                                cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1)
-                    cv2.putText(imgBackground, str(id), (1006, 493),
-                                cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1)
-                    cv2.putText(imgBackground, str(studentInfo['standing']), (910, 625),
-                                cv2.FONT_HERSHEY_COMPLEX, 0.6, (100, 100, 100), 1)
-                    cv2.putText(imgBackground, str(studentInfo['year']), (1025, 625),
-                                cv2.FONT_HERSHEY_COMPLEX, 0.6, (100, 100, 100), 1)
-                    cv2.putText(imgBackground, str(studentInfo['starting_year']), (1125, 625),
-                                cv2.FONT_HERSHEY_COMPLEX, 0.6, (100, 100, 100), 1)
+    for recognized_id in recognized_ids:
+        # Reference to the student in the Firebase Realtime Database
+        ref = db.reference(f'Students/{recognized_id}')
+        student = ref.get()
 
-                    (w, h), _ = cv2.getTextSize(studentInfo['name'], cv2.FONT_HERSHEY_COMPLEX, 1, 1)
-                    offset = (414 - w) // 2
-                    cv2.putText(imgBackground, str(studentInfo['name']), (808 + offset, 445),
-                                cv2.FONT_HERSHEY_COMPLEX, 1, (50, 50, 50), 1)
+        if student:
+            # If the student exists in the database, retrieve the name and standing
+            name = student.get('name', None)
+            standing = student.get('standing', 'Unknown Standing')  # Default value if not found
 
-                    imgBackground[175:175 + 216, 909:909 + 216] = imgStudent
+            if name:
+                # First line (Person recognized)
+                cv2.putText(imgDisplay, f"Person recognized: {name}", (base_x, base_y),
+                            font, font_scale, font_color, thickness)
 
-                counter += 1
+                # Second line (Standing), below the first line
+                cv2.putText(imgDisplay, f"Standing: {standing}", (base_x, base_y + line_height),
+                            font, font_scale, font_color, thickness)
 
-                if counter >= 20:
-                    counter = 0
-                    modeType = 0
-                    studentInfo = []
-                    imgStudent = []
-                    imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
-    else:
-        modeType = 0
-        counter = 0
-    # cv2.imshow("Webcam", img)
-    cv2.imshow("Face Attendance", imgBackground)
-    cv2.waitKey(1)
+                image_path = f"Face-Rec/Images/{recognized_id}.png"
+                blob = bucket.blob(image_path)
+
+                #try:
+                    #with tempfile.NamedTemporaryFile(delete=False) as temp_image:
+                        #blob.download_to_filename(temp_image.name)
+                        #recognized_image = cv2.imread(temp_image.name)
+
+                        #if recognized_image is not None:
+                            # Define the target size
+                            #target_height = 380
+                            #target_width = 540
+                            # Resize the image to fit within the specified dimensions
+                            #resized_image = cv2.resize(recognized_image, (target_width, target_height))
+
+                            # Overlay resized_image onto imgDisplay
+                            #imgDisplay[100:100 + target_height, 100:100 + target_width] = resized_image
+
+                        #os.unlink(temp_image.name)
+                #except Exception as e:  # This handles any exception when downloading or processing the image
+                    #print(f"Error processing image for ID {recognized_id}: {e}")
+                break  # Stop after the first recognized person for simplicity
+
+    # Display default message if no recognized IDs
+    if not recognized_ids:
+        cv2.putText(imgDisplay, "Unknown person", (base_x, base_y), font, font_scale, font_color, thickness)
+
+
+def reset_mode(imgDisplay, modeType, counter, imgModeList):
+    # Reset the modeType and counter if no faces are detected
+    modeType = 0
+    counter = 0
+    return modeType, counter
+
+if __name__ == "__main__":
+    main()
