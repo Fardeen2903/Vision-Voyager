@@ -27,7 +27,16 @@ class FlaskAppTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)  # Corrected status code expectation for the register route
         self.assertNotIn(b'Registration successful', response.data)  # Update assertion due to unsuccessful registration
 
-  
+    def test_view_people_route(self):
+        # Simulate a request to the view_people route
+        response = self.app.get('/view_people')
+
+        # Check if the response status code is 200 (OK)
+        self.assertEqual(response.status_code, 200)
+
+
+
+
 
 
     def test_home_route_without_session(self):
