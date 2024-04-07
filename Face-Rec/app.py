@@ -159,54 +159,26 @@ def display_recognition_results(recognized_ids, imgDisplay, modeType, counter, i
     thickness = 2
     line_height = 35  # Space between lines
 
-    # Start position for the first line of text
-    base_x, base_y = 50, 50
+    if recognized_ids:
+        for recognized_id in recognized_ids:
+            # Reference to the student in the Firebase Realtime Database
+            ref = db.reference(f'Students/{recognized_id}')
+            student = ref.get()
 
-    for recognized_id in recognized_ids:
-        # Reference to the student in the Firebase Realtime Database
-        ref = db.reference(f'Students/{recognized_id}')
-        student = ref.get()
+            if student:
+                name = student.get('name', "Unknown")
+                standing = student.get('standing', 'Unknown Standing')
 
-        if student:
-            # If the student exists in the database, retrieve the name and standing
-            name = student.get('name', None)
-            standing = student.get('standing', 'Unknown Standing')  # Default value if not found
+                # Display the name and standing of the recognized person
+                cv2.putText(imgDisplay, f"Name: {name}", (10, 50), font, font_scale, font_color, thickness)
+                cv2.putText(imgDisplay, f"Standing: {standing}", (10, 90), font, font_scale, font_color, thickness)
+            else:
+                # Display "Unknown person" if the student ID is not found in the database
+                cv2.putText(imgDisplay, "Unknown person", (10, 50), font, font_scale, font_color, thickness)
+    else:
+        # Display "Unknown person" if no faces are recognized
+        cv2.putText(imgDisplay, "Unknown person", (10, 50), font, font_scale, font_color, thickness)
 
-            if name:
-                # First line (Person recognized)
-                cv2.putText(imgDisplay, f"Person recognized: {name}", (base_x, base_y),
-                            font, font_scale, font_color, thickness)
-
-                # Second line (Standing), below the first line
-                cv2.putText(imgDisplay, f"Standing: {standing}", (base_x, base_y + line_height),
-                            font, font_scale, font_color, thickness)
-
-                image_path = f"Face-Rec/Images/{recognized_id}.png"
-                blob = bucket.blob(image_path)
-
-                #try:
-                    #with tempfile.NamedTemporaryFile(delete=False) as temp_image:
-                        #blob.download_to_filename(temp_image.name)
-                        #recognized_image = cv2.imread(temp_image.name)
-
-                        #if recognized_image is not None:
-                            # Define the target size
-                            #target_height = 380
-                            #target_width = 540
-                            # Resize the image to fit within the specified dimensions
-                            #resized_image = cv2.resize(recognized_image, (target_width, target_height))
-
-                            # Overlay resized_image onto imgDisplay
-                            #imgDisplay[100:100 + target_height, 100:100 + target_width] = resized_image
-
-                        #os.unlink(temp_image.name)
-                #except Exception as e:  # This handles any exception when downloading or processing the image
-                    #print(f"Error processing image for ID {recognized_id}: {e}")
-                break  # Stop after the first recognized person for simplicity
-
-    # Display default message if no recognized IDs
-    if not recognized_ids:
-        cv2.putText(imgDisplay, "Unknown person", (base_x, base_y), font, font_scale, font_color, thickness)
 
 
 def reset_mode(imgDisplay, modeType, counter, imgModeList):
