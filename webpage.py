@@ -17,11 +17,14 @@ import logging
 import sys
 import os
 import base64
+from robot import RobotControl
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'verysecretkey'
 csrf = CSRFProtect(app)
 csrf.init_app(app)
+# Initialize robot control
+robot = RobotControl(left_forward=20, left_backward=21, right_forward=19, right_backward=26)
 
 # Check if the default app has already been initialized to prevent re-initialization error
 if not firebase_admin._apps:
@@ -285,6 +288,26 @@ def start_face_recognition():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/face_recognition', methods=['POST'])
+def handle_face_recognition():
+    if 'image' not in request.files:
+        return jsonify({'message': 'No image provided'}), 400
+
+    file = request.files['image']
+    # Convert the image file to a numpy array and perform face recognition
+    img_np = np.fromstring(file.read(), np.uint8)
+    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
+
+    # Assume `recognize_faces_in_frame` is your function for face recognition
+    face_locations, face_names = start_face_recognition(img)
+
+    if face_names:  # If any known face is recognized
+        print(f"Recognized: {face_names}")
+        robot.move_forward(duration=1)  # Example: move robot forward for 1 second
+    else:
+        robot.stop()  # Stop the robot if no known faces are recognized
+
+    return jsonify({'recognized_faces': face_names}), 200
 
 
 if __name__ == '__main__':
