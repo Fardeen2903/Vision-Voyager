@@ -294,17 +294,18 @@
                 >
                   Designed & Developed By Penn State University
                 </p>
-                <a
-                  href="javascript:void(0)"
-                    id="startCameraButton"
-                  class="main-btn wow fadeInUp"
-                  data-wow-duration="1.3s"
-                  data-wow-delay="1.1s"
-                >
-                  Activate
-                </a>
+<!--                <a-->
+<!--                  href="javascript:void(0)"-->
+<!--                  id="startCameraButton"-->
+<!--                  class="main-btn wow fadeInUp"-->
+<!--                  data-wow-duration="1.3s"-->
+<!--                  data-wow-delay="1.1s"-->
+<!--                >-->
+<!--                  Activate-->
+<!--                </a>-->
 
-                <button id="start-recognition" class="btn btn-primary">Activate</button>
+                <button id="startCameraButton" class="btn btn-primary">Activate</button>
+                <div id="preview"></div>
 
               <div id="cameraContainer"></div>
               <!-- header hero content -->
@@ -352,7 +353,7 @@
                 data-wow-duration="1.5s"
                 data-wow-delay="0.2s"
               >
-                <img src="static/assets/images/brands/ayroui.svg" alt="brand" />
+                <img src="static/assets/images/brands/penn-state-logo.svg" alt="brand" />
               </div>
               <!-- single logo -->
               <div
@@ -360,7 +361,7 @@
                 data-wow-duration="1.5s"
                 data-wow-delay="0.3s"
               >
-                <img src="static/assets/images/brands/graygrids.svg" alt="brand" />
+                <img src="static/assets/images/brands/RaspberryPiLogo.svg" alt="brand" />
               </div>
               <!-- single logo -->
               <div
@@ -368,7 +369,7 @@
                 data-wow-duration="1.5s"
                 data-wow-delay="0.4s"
               >
-                <img src="static/assets/images/brands/lineicons.svg" alt="brand" />
+                <img src="static/assets/images/brands/pytorch-icon.svg" alt="brand" />
               </div>
               <!-- single logo -->
               <div
@@ -377,7 +378,7 @@
                 data-wow-delay="0.5s"
               >
                 <img
-                  src="static/assets/images/brands/ecommerce-html.svg"
+                  src="static/assets/images/brands/pythonlogo.svg"
                   alt="brand"
                 />
               </div>
@@ -926,5 +927,38 @@
     <script src="static/assets/js/main.js"></script>
     <script src="static/assets/js/cam_preview.js"></script>
     <script src="static/assets/js/about_section.js"></script>
+
+    <script>
+      // Function to activate the camera
+      function activateCamera() {
+        // Your camera activation logic here
+        // For example:
+        const videoElement = document.getElementById('cameraPreview');
+        navigator.mediaDevices.getUserMedia({ video: true })
+          .then((stream) => {
+            videoElement.srcObject = stream;
+            videoElement.play();
+          })
+          .catch((error) => {
+            console.error('Error accessing camera:', error);
+          });
+        alert('Camera activated!');
+      }
+
+      // Add event listener to the button
+      const startCameraButton = document.getElementById('startCameraButton');
+      startCameraButton.addEventListener('click', activateCamera);
+    </script>
+
+    <script>
+        document.getElementById('startButton').addEventListener('click', () => {
+            fetch('/run_detection')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('preview').innerText = data.output;
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    </script>
   </body>
 </html>

@@ -6,7 +6,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import storage
 
-cred = credentials.Certificate("VVDB_KEY.json")
+cred = credentials.Certificate("Face-Rec/VVDB_KEY.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': "https://visionvoyagerdb-default-rtdb.firebaseio.com/",
     'storageBucket': "visionvoyagerdb.appspot.com"

@@ -17,6 +17,9 @@ import sys
 import os
 import base64
 
+import subprocess
+
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'lv_key'
 csrf = CSRFProtect(app)
@@ -271,6 +274,40 @@ def start_face_recognition():
         return jsonify({"message": message}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# @app.route('/start_yolov_detection', methods=['GET'])
+# def start_yolov_detection():
+#     try:
+#         # Change directory to YOLOv5 directory
+#         yolov5_dir = r'C:\Users\Jarvis\Documents\GitHub\Vision-Voyager\yolov5'
+#         os.chdir(yolov5_dir)
+#
+#         # Specify the command to run detect.py script
+#         command = ['venv/bin/python', 'detect.py', '--source 1']  # Adjust options and arguments as needed
+#
+#         # Start detect.py script as a subprocess and capture the output and errors
+#         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+#
+#         # Read output and errors
+#         stdout, stderr = process.communicate()
+#
+#         if process.returncode == 0:
+#             message = "YOLOv5 detection process started successfully."
+#         else:
+#             message = f"YOLOv5 detection process failed to start. STDOUT: {stdout} STDERR: {stderr}"
+#
+#         return jsonify({"message": message, "output": stdout, "errors": stderr}), 200
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+@app.route('/run_detection')
+def run_detection():
+    # Run the YOLOv5 detection script and capture the output
+    result = subprocess.run(['python', 'detect.py', '--source', '0'], capture_output=True, text=True)
+
+    # Return the output as JSON
+    return jsonify({'output': result.stdout})
+
 
 if __name__ == '__main__':
     app.run(debug=False, host="0.0.0.0", port=8000)
