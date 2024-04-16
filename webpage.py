@@ -1,15 +1,14 @@
-## Import necessary libraries
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 import firebase_admin
 from firebase_admin import credentials, storage, db  # Changed from firestore to db for Realtime Database
 from flask import Flask, request, redirect, url_for, render_template, flash, abort, session, jsonify
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
-from wtforms import StringField
+from wtforms import StringField, HiddenField
 from flask_wtf.file import MultipleFileField, FileAllowed
 import numpy as np
 import cv2
-import face_recognition
+import face_recognition as fr
 from app import recognize_face, start_face_recognition_process
 import subprocess
 from uuid import uuid4
@@ -17,14 +16,12 @@ import logging
 import sys
 import os
 import base64
-from robot import RobotControl
+from io import BytesIO
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'verysecretkey'
 csrf = CSRFProtect(app)
 csrf.init_app(app)
-# Initialize robot control
-robot = RobotControl(left_forward=20, left_backward=21, right_forward=19, right_backward=26)
 
 # Check if the default app has already been initialized to prevent re-initialization error
 if not firebase_admin._apps:
@@ -65,6 +62,7 @@ class AddPersonForm(FlaskForm):
     office_room_number = StringField('Office Room Number')
     department_or_major = StringField('Department or Major')
     photos = MultipleFileField('Photos', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'])])
+    base64_image = HiddenField()
 
 
 @app.route('/add_person', methods=['GET', 'POST'])
@@ -72,7 +70,6 @@ def add_person():
     form = AddPersonForm()
 
     if form.validate_on_submit():
-        # Generate a unique ID for the new person
         unique_id = str(uuid4())
 
         # Extract form data
@@ -81,7 +78,7 @@ def add_person():
         office_room_number = form.office_room_number.data
         department_or_major = form.department_or_major.data
 
-        # Create a dictionary of the person's data
+        # Create a dictionary for the person's data
         person_data = {
             'name': name,
             'status': status,
@@ -89,33 +86,53 @@ def add_person():
             'department_or_major': department_or_major,
         }
 
-        # Process each photo if any
-        if form.photos.data:
-            for file in form.photos.data:
-                if file and allowed_file(file.filename):
-                    # Secure the filename
-                    _, file_extension = os.path.splitext(file.filename)
-                    secure_name = f"{unique_id}{file_extension}"  # Use the unique ID as the file name
-                    blob = bucket.blob(f'Face-Rec/images/{secure_name}')
-                    blob.upload_from_string(file.read(), content_type=file.content_type)
+        # Process the base64 image
+        base64_image_data = form.base64_image.data
+        if base64_image_data:
+            # Split the base64 string to remove the prefix
+            header, base64_data = base64_image_data.split(',', 1)
+            # Decode the base64 string
+            image_data = base64.b64decode(base64_data)
+            # Create a file-like object from the decoded data
+            image_file = BytesIO(image_data)
+            image_file.seek(0)
+            img = cv2.imdecode(np.frombuffer(image_file.read(), np.uint8), cv2.IMREAD_COLOR)
 
-                    # Store the public URL in the Realtime Database
-                    person_data['photo_url'] = blob.public_url
-                    try:
-                        blob.upload_from_string(file.read(), content_type=file.content_type)
-                        person_data['photo_url'] = blob.public_url
-                    except Exception as e:
-                        logging.error(f"Failed to upload file: {e}")
+            # Generate face encodings
+            face_encodings = fr.face_encodings(img)
+            if face_encodings:
+                encoding = face_encodings[0].tolist()  # Convert numpy array to list
+                # Store the encoding in Firebase
+                db.reference(f'encodings/{unique_id}').set({
+                    'encoding': encoding,
+                    'metadata': {
+                        'name': name,
+                        'status': status,
+                        'office_room_number': office_room_number,
+                        'department_or_major': department_or_major
+                    }
+                })
 
-        # Save the person data to the Realtime Database using the unique ID
+            # After processing the image for face encodings, reset the file pointer
+            image_file.seek(0)
+
+            # Determine the file extension (default to jpg)
+            file_extension = 'jpg'
+            secure_name = f"{unique_id}.{file_extension}"
+            blob = bucket.blob(f'Face-Rec/images/{secure_name}')
+            # Upload the image file to the Firebase Storage Bucket
+            blob.upload_from_file(image_file, content_type='image/jpeg')
+
+            person_data['photo_url'] = blob.public_url
+
+        # Save the person data to the Firebase Realtime Database
         db_ref = db.reference(f'people/{unique_id}')
         db_ref.set(person_data)
 
         flash('Person added successfully.')
         return redirect(url_for('view_people'))
 
-    return render_template('add_person.html', csrf_token=generate_csrf(), form=form)
-
+    return render_template('add_person.html', form=form)
 
 
 @app.route('/view_people')
@@ -143,8 +160,8 @@ def face_recognition():
     img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
 
     # Perform face recognition on the image
-    face_locations = face_recognition.face_locations(img)
-    face_encodings = face_recognition.face_encodings(img, face_locations)
+    face_locations = fr.face_locations(img)
+    face_encodings = fr.face_encodings(img, face_locations)
 
     # Process the detected faces (e.g., identify known faces, draw bounding boxes)
 
@@ -288,27 +305,7 @@ def start_face_recognition():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/face_recognition', methods=['POST'])
-def handle_face_recognition():
-    if 'image' not in request.files:
-        return jsonify({'message': 'No image provided'}), 400
-
-    file = request.files['image']
-    # Convert the image file to a numpy array and perform face recognition
-    img_np = np.fromstring(file.read(), np.uint8)
-    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-
-    # Assume `recognize_faces_in_frame` is your function for face recognition
-    face_locations, face_names = start_face_recognition(img)
-
-    if face_names:  # If any known face is recognized
-        print(f"Recognized: {face_names}")
-        robot.move_forward(duration=1)  # Example: move robot forward for 1 second
-    else:
-        robot.stop()  # Stop the robot if no known faces are recognized
-
-    return jsonify({'recognized_faces': face_names}), 200
 
 
 if __name__ == '__main__':
-    app.run(debug=False, host="0.0.0.0", port=8000)
+    app.run(debug=True, host="0.0.0.0", port=8000)
