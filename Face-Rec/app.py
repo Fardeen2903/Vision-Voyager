@@ -22,6 +22,7 @@ studentIds = None  # Global variable for corresponding student IDs
 imgModeList=[]
 
 def start_face_recognition_process():
+    load_encodings()
     # Capture a frame from the camera
     cap = cv2.VideoCapture(0)  # 0 is typically the default camera
     success, img = cap.read()
@@ -54,32 +55,42 @@ def start_face_recognition_process():
     return {'recognized_ids': recognized_ids}
 
 # Function to recognize face from an image array
+def load_encodings():
+    global encodeListKnown, studentIds
+    encode_ref = db.reference('encodings')
+    all_encodings = encode_ref.get()
+    encodeListKnown = []
+    studentIds = []
+    if all_encodings:
+        for student_id, details in all_encodings.items():
+            encoding = np.array(details['encoding'])
+            encodeListKnown.append(encoding)
+            studentIds.append(student_id)
+
 def recognize_face(img_array):
     global encodeListKnown, studentIds
-
-    # Load the encoding file just once
-    if encodeListKnown is None or studentIds is None:
-        with open('Face-Rec/EncodeFile.p', 'rb') as file:
-            encodeListKnownWithIds = pickle.load(file)
-            encodeListKnown, studentIds = encodeListKnownWithIds
+    if not encodeListKnown or not studentIds:
+        load_encodings()
 
     face_locations = face_recognition.face_locations(img_array)
     face_encodings = face_recognition.face_encodings(img_array, face_locations)
-
     recognized_ids = []
-    for encodeFace in face_encodings:
-        matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
-        faceDis = face_recognition.face_distance(encodeListKnown, encodeFace)
-        matchIndex = np.argmin(faceDis)
-        if matches[matchIndex]:
-            recognized_id = studentIds[matchIndex]
-            recognized_ids.append(recognized_id)
+    for face_encoding in face_encodings:
+        matches = face_recognition.compare_faces(encodeListKnown, face_encoding)
+        if any(matches):
+            best_match_index = np.argmin(face_recognition.face_distance(encodeListKnown, face_encoding))
+            if matches[best_match_index]:
+                recognized_id = studentIds[best_match_index]
+                recognized_ids.append(recognized_id)
 
-    return recognized_ids if recognized_ids else None
+    return recognized_ids
+
 
 def main():
     global encodeListKnown, studentIds, imgModeList  # Declare global variables
 
+    # Load the face encodings before entering the main loop
+    load_encodings()
     # Initialize 'modeType' and 'counter' at the start of the function
     modeType = 0
     counter = 0
@@ -162,7 +173,7 @@ def display_recognition_results(recognized_ids, imgDisplay, modeType, counter, i
     if recognized_ids:
         for recognized_id in recognized_ids:
             # Reference to the student in the Firebase Realtime Database
-            ref = db.reference(f'Students/{recognized_id}')
+            ref = db.reference(f'people/{recognized_id}')
             student = ref.get()
 
             if student:
