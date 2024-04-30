@@ -178,7 +178,7 @@ def display_recognition_results(recognized_ids, imgDisplay, modeType, counter, i
 
             if student:
                 name = student.get('name', "Unknown")
-                standing = student.get('standing', 'Unknown Standing')
+                standing = student.get('status', 'Unknown Standing')
 
                 # Display the name and standing of the recognized person
                 cv2.putText(imgDisplay, f"Name: {name}", (10, 50), font, font_scale, font_color, thickness)
@@ -189,7 +189,6 @@ def display_recognition_results(recognized_ids, imgDisplay, modeType, counter, i
     else:
         # Display "Unknown person" if no faces are recognized
         cv2.putText(imgDisplay, "Unknown person", (10, 50), font, font_scale, font_color, thickness)
-
 
 
 def reset_mode(imgDisplay, modeType, counter, imgModeList):
