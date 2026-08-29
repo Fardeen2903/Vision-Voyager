@@ -1,0 +1,366 @@
+# Vision Voyager
+
+**Vision Voyager** is an undergraduate computer science capstone project that integrates **computer vision, machine learning, robotics, and cloud-connected software** into an intelligent mobile robotic system.
+
+The project was designed around a mobile robot capable of visually detecting people, supporting person recognition, and interacting with a web-based information system. The computer-vision pipeline used **YOLOv5 for human detection**, while additional facial-recognition functionality was developed for identifying known individuals. The system also incorporated Raspberry Pi-based robot control and a Flask/Firebase backend for storing and accessing user information.
+
+**Role:** Project Manager & Lead Developer  
+**Institution:** Penn State Harrisburg  
+**Project Type:** Undergraduate Computer Science Capstone  
+**Development:** 2023–2024
+
+---
+
+## Project Overview
+
+Vision Voyager explores how an intelligent system can connect **visual perception with physical action and distributed software services**.
+
+At a high level, the system combines:
+
+- **YOLOv5-based human detection**
+- **OpenCV image processing**
+- Facial detection and recognition
+- Raspberry Pi robotic control
+- Flask-based web services
+- Firebase Realtime Database / Firestore
+- Firebase Storage
+- Web interfaces for managing recognized individuals
+
+The goal was not simply to run a computer-vision model, but to integrate machine-learning inference into a larger end-to-end system capable of perceiving people, associating visual observations with stored information, and supporting robotic behavior.
+
+---
+
+## System Architecture
+
+```text
+                    ┌─────────────────────┐
+                    │   Camera / Visual   │
+                    │       Input         │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ Computer Vision     │
+                    │ OpenCV + YOLOv5     │
+                    └──────────┬──────────┘
+                               │
+                    Human Detection
+                               │
+               ┌───────────────┴───────────────┐
+               │                               │
+               ▼                               ▼
+    ┌────────────────────┐          ┌────────────────────┐
+    │ Face Recognition   │          │ Robot Controller   │
+    │ / Identification   │          │ Raspberry Pi GPIO  │
+    └─────────┬──────────┘          └────────────────────┘
+              │
+              ▼
+    ┌────────────────────┐
+    │ Flask Application  │
+    │ / REST Interface   │
+    └─────────┬──────────┘
+              │
+              ▼
+    ┌────────────────────┐
+    │      Firebase      │
+    │ Database + Storage │
+    └─────────┬──────────┘
+              │
+              ▼
+    ┌────────────────────┐
+    │ Web Management UI  │
+    └────────────────────┘
+```
+
+The repository contains implementations for both the software-management side of the system and the perception/robotics components.
+
+---
+
+## Computer Vision
+
+### Human Detection
+
+Vision Voyager uses **YOLOv5** as the primary object-detection model for identifying people from camera input.
+
+The human-detection pipeline was designed to provide visual information that could be incorporated into higher-level robotic behavior.
+
+Conceptually:
+
+```text
+Camera Frame
+      │
+      ▼
+Image Processing
+      │
+      ▼
+YOLOv5 Inference
+      │
+      ▼
+Person Detection
+      │
+      ▼
+Location / Detection Information
+      │
+      ▼
+Robot or Application Logic
+```
+
+This component introduced us to the challenges of incorporating deep-learning inference into a real-time physical system rather than evaluating a model only on static datasets.
+
+---
+
+## Face Recognition
+
+Vision Voyager also includes a separate face-recognition subsystem for identifying previously registered individuals.
+
+The system:
+
+1. Captures or receives an image.
+2. Detects faces in the image.
+3. Generates facial encodings.
+4. Compares those encodings against stored representations.
+5. Retrieves the corresponding user's information when a match is found.
+6. Displays information about the recognized person.
+
+Known face encodings and associated metadata can be stored and retrieved through Firebase.
+
+The repository includes functionality for:
+
+- generating face encodings;
+- registering new individuals;
+- recognizing known individuals;
+- retrieving person information;
+- storing profile images;
+- updating and deleting records.
+
+---
+
+## Robotics
+
+The robotic portion of Vision Voyager uses a **Raspberry Pi GPIO-based motor control interface**.
+
+The `RobotControl` class provides control over the robot's motors, including forward movement and stopping.
+
+```python
+robot.move_forward()
+robot.stop()
+```
+
+This component allowed perception generated by the computer-vision system to be connected to a physical robotic platform.
+
+---
+
+## Web Application & Cloud Integration
+
+A Flask-based application provides the interface between the computer-vision system, stored information, and user-facing functionality.
+
+The application integrates with **Firebase** for:
+
+- user/person metadata;
+- face encodings;
+- image storage;
+- database retrieval;
+- record management.
+
+The web interface supports operations such as:
+
+- registering individuals;
+- adding profile information;
+- uploading/capturing images;
+- viewing registered people;
+- editing records;
+- deleting records;
+- initiating face-recognition functionality.
+
+This allowed the computer-vision component to operate as part of a larger distributed application rather than as an isolated model.
+
+---
+
+## Technology Stack
+
+### Machine Learning & Computer Vision
+- Python
+- YOLOv5
+- OpenCV
+- Face Recognition
+- NumPy
+
+### Robotics
+- Raspberry Pi
+- Python
+- RPi.GPIO
+
+### Backend
+- Flask
+- Flask-WTF
+- REST-style web endpoints
+
+### Database & Cloud
+- Firebase Realtime Database
+- Firebase / Firestore
+- Firebase Storage
+
+### Front End
+- HTML
+- CSS
+- Flask/Jinja templates
+
+### Development
+- Git
+- GitHub
+- Notion
+- Agile / iterative software development
+
+---
+
+## Repository Structure
+
+```text
+Vision-Voyager/
+│
+├── Face-Rec/
+│   ├── app.py
+│   ├── EncodeGenerator.py
+│   ├── AddDatatoDatabase.py
+│   ├── Images/
+│   └── Resources/
+│
+├── main.py
+├── webpage.py
+├── robot.py
+├── requirements.txt
+│
+├── add_person.html
+├── edit_person.html
+├── view_people.html
+├── login.html
+├── register.html
+├── home.html
+└── ...
+```
+
+### Important Components
+
+**`robot.py`**  
+Raspberry Pi GPIO-based motor-control functionality.
+
+**`Face-Rec/app.py`**  
+Face-recognition pipeline, camera input, stored encodings, and Firebase integration.
+
+**`webpage.py`**  
+Web-facing recognition and person-management functionality.
+
+**`main.py`**  
+Flask application and Firebase-backed application logic.
+
+**`Face-Rec/EncodeGenerator.py`**  
+Generation and management of facial encodings used for recognition.
+
+---
+
+## My Contributions
+
+I served as **Project Manager and Lead Developer** for Vision Voyager.
+
+My work included:
+
+- helping design the overall software architecture;
+- integrating machine-learning and computer-vision functionality into the application;
+- working with **YOLOv5 and OpenCV** for human detection;
+- developing and integrating Flask-based backend functionality;
+- integrating Firebase database and storage services;
+- contributing to the face-recognition pipeline;
+- connecting perception functionality with the robotic system;
+- coordinating development tasks and milestones across the team;
+- managing development through GitHub and Notion;
+- debugging interactions between multiple independently developed system components.
+
+A major challenge of the project was integrating computer vision, cloud services, web software, and physical robotics into a single system.
+
+---
+
+## What I Learned
+
+Vision Voyager was my first substantial experience building an **end-to-end intelligent system**.
+
+The project gave me practical experience with:
+
+- deep-learning-based computer vision;
+- deploying ML inference within a larger application;
+- image and video processing;
+- intelligent-system architecture;
+- robotics software;
+- backend development;
+- cloud-connected databases;
+- system integration;
+- team-based software engineering;
+- technical project leadership.
+
+More importantly, it introduced me to a broader research question that continues to interest me: **how intelligent systems can transform perception into useful decisions and actions in an environment**.
+
+That experience helped motivate my later interests in machine learning, reinforcement learning, and intelligent agents.
+
+---
+
+## Limitations
+
+Vision Voyager was developed as an undergraduate capstone prototype rather than a production system.
+
+Important limitations include:
+
+- limited systematic benchmarking of model performance;
+- dependence on available hardware and camera conditions;
+- limited robustness testing across environments;
+- prototype-level authentication and security;
+- tightly coupled components in portions of the original implementation;
+- limited evaluation of end-to-end latency and reliability.
+
+These limitations also provide several natural directions for future development.
+
+---
+
+## Future Work
+
+Potential extensions include:
+
+- benchmarking newer object-detection architectures against YOLOv5;
+- improved real-time tracking after initial person detection;
+- reinforcement-learning-based robot navigation;
+- multimodal perception using vision and additional sensor input;
+- uncertainty-aware perception and decision-making;
+- improved edge inference on embedded hardware;
+- systematic evaluation of detection latency and reliability;
+- autonomous path planning;
+- stronger separation between perception, planning, and control;
+- improved security and deployment infrastructure.
+
+A particularly interesting extension would be to move from a primarily perception-driven system toward an **autonomous agent capable of learning sequential decisions from environmental feedback**.
+
+---
+
+## Academic Context
+
+Vision Voyager was completed as my **final undergraduate Computer Science capstone project at Penn State Harrisburg**.
+
+The project provided an opportunity to apply concepts from:
+
+- artificial intelligence;
+- machine learning;
+- software engineering;
+- computer vision;
+- databases;
+- distributed systems;
+- robotics.
+
+---
+
+## Author
+
+**Fardeen Shahed**
+
+Computer Science  
+Research interests: **Machine Learning, Reinforcement Learning, Large Language Models, NLP, and Intelligent Agents**
+
+GitHub: [Fardeen2903](https://github.com/Fardeen2903)
+
+LinkedIn: [Fardeen Shahed](https://www.linkedin.com/in/fardeen-shahed-0b73321b8/)
